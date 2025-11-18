@@ -2,14 +2,10 @@ import { Router, Request, Response } from 'express';
 import { verifyAuth } from './auth';
 import { Meeting, IMeeting } from '../models/Meeting';
 import { User } from '../models/User';
-import { StreamClient } from '@stream-io/node-sdk';
 import { v4 as uuidv4 } from 'uuid';
 import { generateRoomId } from '../utils/room-utils';
 
 const router = Router();
-
-const STREAM_API_KEY = process.env.STREAM_API_KEY || process.env.NEXT_PUBLIC_STREAM_API_KEY;
-const STREAM_API_SECRET = process.env.STREAM_SECRET_KEY;
 
 // Create a new meeting
 router.post('/', verifyAuth, async (req: Request, res: Response) => {
@@ -45,20 +41,8 @@ router.post('/', verifyAuth, async (req: Request, res: Response) => {
     
     const meetingLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/meeting/${streamCallId}`;
 
-    // Create Stream call if needed
-    if (STREAM_API_KEY && STREAM_API_SECRET) {
-      const streamClient = new StreamClient(STREAM_API_KEY, STREAM_API_SECRET);
-      await streamClient.video.createCall({
-        id: streamCallId,
-        data: {
-          custom: {
-            title,
-            description,
-            type,
-          },
-        },
-      });
-    }
+    // Note: Stream.io calls are created on-demand when users join via the frontend
+    // No need to pre-create them on the backend
 
     // Get user's display name (firstName + lastName or username or email)
     const displayName = user.firstName 

@@ -22,6 +22,9 @@ const clerkClientProxy = {
   get users() {
     return getClerkClient().users;
   },
+  get telemetry() {
+    return getClerkClient().telemetry;
+  },
   verifyToken(token: string, options?: any) {
     // Use the verifyToken function directly from @clerk/backend
     const secretKey = process.env.CLERK_SECRET_KEY;
@@ -36,5 +39,6 @@ const clerkClientProxy = {
 };
 
 // Type assertion to maintain type safety
-export const clerkClient = clerkClientProxy as ReturnType<typeof createClerkClient>;
+// Using unknown first to allow the conversion since we only expose the methods we need
+export const clerkClient = clerkClientProxy as unknown as ReturnType<typeof createClerkClient>;
 

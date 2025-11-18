@@ -70,6 +70,9 @@ export const verifyAuth = async (req: Request, res: Response, next: NextFunction
 router.get('/me', verifyAuth, async (req, res) => {
   try {
     const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'User ID not found' });
+    }
     const clerkUser = await clerkClient.users.getUser(userId);
     
     // Sync user with MongoDB

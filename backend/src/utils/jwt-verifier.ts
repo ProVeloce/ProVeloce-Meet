@@ -26,8 +26,8 @@ function getClerkDomain(): string {
     }
   }
   
-  // Default fallback - extracted from your publishable key
-  return 'https://profound-ant-81.clerk.accounts.dev';
+  // No fallback for production - domain must be explicitly set
+  throw new Error('CLERK_DOMAIN or NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY must be set in environment variables');
 }
 
 const CLERK_DOMAIN = getClerkDomain();
