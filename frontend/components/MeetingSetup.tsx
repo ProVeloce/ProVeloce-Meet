@@ -225,7 +225,9 @@ const MeetingSetup = ({
   if (callTimeNotArrived)
     return (
       <Alert
-        title={`Your Meeting has not started yet. It is scheduled for ${callStartsAt.toLocaleString()}`}
+        title={`Your Meeting has not started yet. It is scheduled for ${
+          callStartsAt ? callStartsAt.toLocaleString() : "a later time"
+        }`}
       />
     );
 
