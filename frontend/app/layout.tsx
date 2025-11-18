@@ -8,6 +8,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import AuthHeader from "@/components/AuthHeader";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 const inter = Inter({ subsets: ["latin"] });
 
@@ -40,9 +41,11 @@ export default function RootLayout({
     >
       <html lang="en">
         <body className={`${inter.className} bg-dark-2`}>
-          <AuthHeader />
-          <Toaster />
-          {children}
+          <ErrorBoundary>
+            <AuthHeader />
+            <Toaster />
+            {children}
+          </ErrorBoundary>
         </body>
       </html>
     </ClerkProvider>

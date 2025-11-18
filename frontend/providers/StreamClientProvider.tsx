@@ -9,14 +9,23 @@ import Loader from '@/components/Loader';
 
 const API_KEY = process.env.NEXT_PUBLIC_STREAM_API_KEY;
 
+// Validate Stream API key
+if (typeof window !== 'undefined' && !API_KEY) {
+  console.error('NEXT_PUBLIC_STREAM_API_KEY is not set. Video features will not work.');
+}
+
 const StreamVideoProvider = ({ children }: { children: ReactNode }) => {
   const [videoClient, setVideoClient] = useState<StreamVideoClient>();
+  const [error, setError] = useState<string | null>(null);
   const { user, isLoaded } = useUser();
   const { getToken } = useAuth();
 
   useEffect(() => {
     if (!isLoaded || !user) return;
-    if (!API_KEY) throw new Error('Stream API key is missing');
+    if (!API_KEY) {
+      setError('Stream API key is missing. Please configure NEXT_PUBLIC_STREAM_API_KEY.');
+      return;
+    }
 
     const initializeClient = async () => {
       try {
@@ -69,13 +78,26 @@ const StreamVideoProvider = ({ children }: { children: ReactNode }) => {
         });
 
         setVideoClient(client);
-      } catch (error) {
-        console.error('Error initializing Stream client:', error);
+        setError(null);
+      } catch (err: any) {
+        console.error('Error initializing Stream client:', err);
+        setError(err?.message || 'Failed to initialize video client');
       }
     };
 
     initializeClient();
   }, [user, isLoaded, getToken]);
+
+  if (error) {
+    return (
+      <div className="flex items-center justify-center h-screen text-white">
+        <div className="text-center">
+          <p className="text-red-500 mb-2">Error: {error}</p>
+          <p className="text-sm text-gray-400">Please check your configuration and try again.</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!videoClient) return <Loader />;
 

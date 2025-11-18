@@ -1,10 +1,19 @@
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api';
 
+// Validate API URL in production
+if (typeof window !== 'undefined' && process.env.NODE_ENV === 'production') {
+  if (!process.env.NEXT_PUBLIC_API_URL) {
+    console.error('NEXT_PUBLIC_API_URL is not set. API calls may fail.');
+  }
+}
+
 export class ApiClient {
   private baseUrl: string;
 
   constructor(baseUrl: string = API_BASE_URL) {
     this.baseUrl = baseUrl;
+    // Remove trailing slash if present
+    this.baseUrl = baseUrl.replace(/\/$/, '');
   }
 
   private async request<T>(

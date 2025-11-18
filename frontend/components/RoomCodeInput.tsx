@@ -9,7 +9,7 @@ interface RoomCodeInputProps {
   onChange: (value: string) => void;
   placeholder?: string;
   className?: string;
-  onValidationChange?: (isValid: boolean) => void;
+  onValidationChange?: (_isValid: boolean) => void;
 }
 
 const RoomCodeInput = ({ 

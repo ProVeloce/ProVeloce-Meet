@@ -14,10 +14,12 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   typescript: {
-    // Warning: This allows production builds to successfully complete even if
-    // your project has type errors.
+    // Ensure type safety in production
     ignoreBuildErrors: false,
   },
+  // Production optimizations
+  poweredByHeader: false,
+  compress: true,
 };
 
 export default nextConfig;
