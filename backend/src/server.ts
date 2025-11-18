@@ -12,6 +12,10 @@ import { streamRoutes } from './routes/stream';
 import { meetingRoutes } from './routes/meeting';
 import { chatRoutes } from './routes/chat';
 import { historyRoutes } from './routes/history';
+import { meetingParticipantRoutes } from './routes/meeting-participants';
+import { recordingRoutes } from './routes/recordings';
+import { meetingHistoryRoutes } from './routes/meeting-history';
+import { webhookRoutes } from './routes/webhooks';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -35,6 +39,10 @@ app.use('/api/stream', streamRoutes);
 app.use('/api/meetings', meetingRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/history', historyRoutes);
+app.use('/api/participants', meetingParticipantRoutes);
+app.use('/api/recordings', recordingRoutes);
+app.use('/api/meeting-history', meetingHistoryRoutes);
+app.use('/api/webhooks', webhookRoutes);
 
 // Health check
 app.get('/health', (req, res) => {

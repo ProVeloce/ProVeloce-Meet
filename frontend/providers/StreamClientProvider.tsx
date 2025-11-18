@@ -67,11 +67,21 @@ const StreamVideoProvider = ({ children }: { children: ReactNode }) => {
           }
         };
 
+        // Get user's full name (firstName + lastName or firstName only)
+        const getUserDisplayName = () => {
+          if (user?.firstName) {
+            return user.lastName 
+              ? `${user.firstName} ${user.lastName}`.trim()
+              : user.firstName;
+          }
+          return user?.username || user?.emailAddresses?.[0]?.emailAddress?.split('@')[0] || 'User';
+        };
+
         const client = new StreamVideoClient({
           apiKey: API_KEY,
           user: {
             id: user?.id,
-            name: user?.username || user?.id,
+            name: getUserDisplayName(),
             image: user?.imageUrl,
           },
           tokenProvider,

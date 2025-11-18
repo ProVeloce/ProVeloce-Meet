@@ -137,6 +137,7 @@ Update these variables:
 
 ```bash
 # Production Clerk Keys
+# Replace with your actual keys from Clerk Dashboard
 NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_YOUR_PUBLISHABLE_KEY_HERE
 CLERK_SECRET_KEY=sk_live_YOUR_SECRET_KEY_HERE
 
@@ -156,6 +157,7 @@ Update these variables:
 
 ```bash
 # Production Clerk Secret Key
+# Replace with your actual key from Clerk Dashboard
 CLERK_SECRET_KEY=sk_live_YOUR_SECRET_KEY_HERE
 
 # Clerk Domain (your custom domain or default)
@@ -262,8 +264,9 @@ In Clerk Dashboard → **Settings** → **Paths**:
 
 ### Frontend (Vercel)
 ```bash
-NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_...
-CLERK_SECRET_KEY=sk_live_...
+# Replace with your actual keys from Clerk Dashboard
+NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY=pk_live_YOUR_PUBLISHABLE_KEY_HERE
+CLERK_SECRET_KEY=sk_live_YOUR_SECRET_KEY_HERE
 NEXT_PUBLIC_CLERK_SIGN_IN_URL=/sign-in
 NEXT_PUBLIC_CLERK_SIGN_UP_URL=/sign-up
 NEXT_PUBLIC_CLERK_DOMAIN=https://accounts.proveloce.com  # Optional
@@ -271,7 +274,8 @@ NEXT_PUBLIC_CLERK_DOMAIN=https://accounts.proveloce.com  # Optional
 
 ### Backend (Render)
 ```bash
-CLERK_SECRET_KEY=sk_live_...
+# Replace with your actual key from Clerk Dashboard
+CLERK_SECRET_KEY=sk_live_YOUR_SECRET_KEY_HERE
 CLERK_DOMAIN=https://accounts.proveloce.com  # Optional, auto-detected if not set
 ```
 

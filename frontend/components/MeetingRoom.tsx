@@ -11,7 +11,7 @@ import {
   useCall,
 } from '@stream-io/video-react-sdk';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
-import { Users, LayoutList, Copy, Link as LinkIcon } from 'lucide-react';
+import { Users, LayoutList, Copy, Link as LinkIcon, MessageSquare } from 'lucide-react';
 import { useUser, useAuth } from '@clerk/nextjs';
 
 import {
@@ -29,8 +29,10 @@ import {
 } from './ui/popover';
 import Loader from './Loader';
 import EndCallButton from './EndCallButton';
+import MeetingChat from './MeetingChat';
 import { cn } from '@/lib/utils';
 import { meetingApi, Meeting } from '@/lib/meeting-api';
+import { participantApi } from '@/lib/participant-api';
 import { useToast } from './ui/use-toast';
 
 type CallLayoutType = 'grid' | 'speaker-left' | 'speaker-right';
@@ -46,28 +48,39 @@ const MeetingRoom = () => {
   const call = useCall();
   const [layout, setLayout] = useState<CallLayoutType>('speaker-left');
   const [showParticipants, setShowParticipants] = useState(false);
+  const [showChat, setShowChat] = useState(false);
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [showShareMenu, setShowShareMenu] = useState(false);
+  const [hasTrackedJoin, setHasTrackedJoin] = useState(false);
   const { useCallCallingState } = useCallStateHooks();
 
   // for more detail about types of CallingState see: https://getstream.io/video/docs/react/ui-cookbook/ringing-call/#incoming-call-panel
   const callingState = useCallCallingState();
 
-  // Fetch meeting data to get room code and link
+  // Fetch meeting data and track join
   useEffect(() => {
-    const fetchMeeting = async () => {
-      if (!call?.id || !user?.id) return;
+    const fetchMeetingAndTrackJoin = async () => {
+      if (!call?.id || !user?.id || callingState !== CallingState.JOINED) return;
 
       try {
         const token = await getToken();
         if (!token) return;
 
         const meetingId = Array.isArray(params.id) ? params.id[0] : params.id;
-        const fetchedMeeting = await meetingApi.getMeetingById(meetingId, token);
         
-        // Only show share menu if user is the host
-        if (fetchedMeeting.hostId === user.id) {
-          setMeeting(fetchedMeeting);
+        // Fetch meeting data
+        const fetchedMeeting = await meetingApi.getMeetingById(meetingId, token);
+        setMeeting(fetchedMeeting);
+        
+        // Track participant join (only once)
+        if (!hasTrackedJoin) {
+          try {
+            await participantApi.joinMeeting(meetingId, token);
+            setHasTrackedJoin(true);
+          } catch (error) {
+            console.error('Error tracking join:', error);
+            // Continue even if tracking fails
+          }
         }
       } catch (error) {
         console.error('Error fetching meeting:', error);
@@ -75,10 +88,29 @@ const MeetingRoom = () => {
       }
     };
 
-    if (callingState === CallingState.JOINED) {
-      fetchMeeting();
-    }
-  }, [call?.id, user?.id, params.id, getToken, callingState]);
+    fetchMeetingAndTrackJoin();
+  }, [call?.id, user?.id, params.id, getToken, callingState, hasTrackedJoin]);
+
+  // Track leave when component unmounts or user leaves
+  useEffect(() => {
+    return () => {
+      const trackLeave = async () => {
+        if (!hasTrackedJoin || !call?.id || !user?.id) return;
+        
+        try {
+          const token = await getToken();
+          if (!token) return;
+
+          const meetingId = Array.isArray(params.id) ? params.id[0] : params.id;
+          await participantApi.leaveMeeting(meetingId, token);
+        } catch (error) {
+          console.error('Error tracking leave:', error);
+        }
+      };
+      
+      trackLeave();
+    };
+  }, [hasTrackedJoin, call?.id, user?.id, params.id, getToken]);
 
   const isHost = meeting?.hostId === user?.id;
   const getMeetingLink = () => {
@@ -191,7 +223,22 @@ const MeetingRoom = () => {
       </div>
       {/* video layout and call controls */}
       <div className="fixed bottom-0 flex w-full items-center justify-center gap-5">
-        <CallControls onLeave={() => router.push(`/`)} />
+        <CallControls 
+          onLeave={async () => {
+            // Track leave before navigating
+            if (hasTrackedJoin && meeting && user?.id) {
+              try {
+                const token = await getToken();
+                if (token) {
+                  await participantApi.leaveMeeting(meeting.streamCallId, token);
+                }
+              } catch (error) {
+                console.error('Error tracking leave:', error);
+              }
+            }
+            router.push(`/`);
+          }} 
+        />
 
         <DropdownMenu>
           <div className="flex items-center">
@@ -220,8 +267,22 @@ const MeetingRoom = () => {
             <Users size={20} className="text-white" />
           </div>
         </button>
+        <button onClick={() => setShowChat((prev) => !prev)}>
+          <div className=" cursor-pointer rounded-2xl bg-[#19232d] px-4 py-2 hover:bg-[#4c535b]  ">
+            <MessageSquare size={20} className="text-white" />
+          </div>
+        </button>
         {!isPersonalRoom && <EndCallButton />}
       </div>
+
+      {/* Chat Panel */}
+      {meeting && (
+        <MeetingChat
+          meetingId={meeting.streamCallId}
+          isOpen={showChat}
+          onClose={() => setShowChat(false)}
+        />
+      )}
     </section>
   );
 };

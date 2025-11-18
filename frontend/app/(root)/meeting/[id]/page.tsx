@@ -1,12 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useUser } from '@clerk/nextjs';
-import { StreamCall, StreamTheme, useStreamVideoClient, Call } from '@stream-io/video-react-sdk';
+import { useUser, useAuth } from '@clerk/nextjs';
+import { StreamCall, StreamTheme, useStreamVideoClient, Call, CallingState, useCallStateHooks } from '@stream-io/video-react-sdk';
 import { useParams } from 'next/navigation';
 import { Loader } from 'lucide-react';
 
 import { useGetCallById } from '@/hooks/useGetCallById';
+import { participantApi } from '@/lib/participant-api';
 import Alert from '@/components/Alert';
 import MeetingSetup from '@/components/MeetingSetup';
 import MeetingRoom from '@/components/MeetingRoom';
@@ -14,11 +15,13 @@ import MeetingRoom from '@/components/MeetingRoom';
 const MeetingPage = () => {
   const { id } = useParams();
   const { isLoaded, user } = useUser();
+  const { getToken } = useAuth();
   const { call: meeting, isCallLoading } = useGetCallById(id);
   const client = useStreamVideoClient();
   const [streamCall, setStreamCall] = useState<Call | null>(null);
   const [isSetupComplete, setIsSetupComplete] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [hasTrackedJoin, setHasTrackedJoin] = useState(false);
 
   // Create Stream.io Call object from meeting data
   useEffect(() => {
@@ -38,6 +41,27 @@ const MeetingPage = () => {
         setError('Failed to initialize meeting. Please try again.');
       });
   }, [client, meeting, id]);
+
+  // Track leave when component unmounts
+  useEffect(() => {
+    return () => {
+      const trackLeave = async () => {
+        if (!hasTrackedJoin || !id || !user?.id) return;
+        
+        try {
+          const token = await getToken();
+          if (!token) return;
+
+          const meetingId = Array.isArray(id) ? id[0] : id;
+          await participantApi.leaveMeeting(meetingId, token);
+        } catch (error) {
+          console.error('Error tracking leave on unmount:', error);
+        }
+      };
+      
+      trackLeave();
+    };
+  }, [hasTrackedJoin, id, user?.id, getToken]);
 
   if (!isLoaded || isCallLoading) {
     return (

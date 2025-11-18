@@ -44,10 +44,20 @@ router.post('/:meetingId', verifyAuth, async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'User not found' });
     }
 
+    // Get user's full name (firstName + lastName or firstName only)
+    const getUserDisplayName = () => {
+      if (user.firstName) {
+        return user.lastName 
+          ? `${user.firstName} ${user.lastName}`.trim()
+          : user.firstName;
+      }
+      return user.username || user.email?.split('@')[0] || 'User';
+    };
+
     const chatMessage = new Chat({
       meetingId,
       userId,
-      userName: user.username || user.email,
+      userName: getUserDisplayName(),
       userImageUrl: user.imageUrl,
       message: message.trim(),
       timestamp: new Date(),
