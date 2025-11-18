@@ -59,7 +59,6 @@ const MeetingRoom = () => {
       if (!call?.id || !user?.id) return;
 
       try {
-        setIsLoadingMeeting(true);
         const token = await getToken();
         if (!token) return;
 
@@ -73,8 +72,6 @@ const MeetingRoom = () => {
       } catch (error) {
         console.error('Error fetching meeting:', error);
         // Silently fail - meeting data is optional
-      } finally {
-        setIsLoadingMeeting(false);
       }
     };
 
