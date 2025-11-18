@@ -13,7 +13,7 @@ import { Textarea } from './ui/textarea';
 import ReactDatePicker from 'react-datepicker';
 import { useToast } from './ui/use-toast';
 import RoomCodeInput from './RoomCodeInput';
-import { isValidRoomCodeFormat, unformatRoomCode } from '@/lib/room-utils';
+// Room code utilities are available but not currently used in this component
 
 const initialValues = {
   dateTime: new Date(),

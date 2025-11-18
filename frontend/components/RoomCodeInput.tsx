@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, ChangeEvent, ClipboardEvent } from 'react';
 import { Input } from './ui/input';
 import { formatRoomCode, isValidRoomCodeFormat } from '@/lib/room-utils';
 
@@ -40,7 +40,7 @@ const RoomCodeInput = ({
     }
   }, [displayValue, onValidationChange]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: ChangeEvent<HTMLInputElement>) => {
     const input = e.target.value;
     
     // Format the input as user types
@@ -51,7 +51,7 @@ const RoomCodeInput = ({
     onChange(formatted);
   };
 
-  const handlePaste = (e: React.ClipboardEvent<HTMLInputElement>) => {
+  const handlePaste = (e: ClipboardEvent<HTMLInputElement>) => {
     e.preventDefault();
     const pasted = e.clipboardData.getData('text');
     const formatted = formatRoomCode(pasted);

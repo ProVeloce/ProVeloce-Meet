@@ -106,7 +106,7 @@ const PersonalRoom = () => {
           {isStarting ? "Starting..." : "Start Meeting"}
         </Button>
         <p className="text-sm text-gray-400 self-center">
-          Click "Start Meeting" to create your personal room and get the room code and invite link.
+          Click &quot;Start Meeting&quot; to create your personal room and get the room code and invite link.
         </p>
       </div>
     </section>

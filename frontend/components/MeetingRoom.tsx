@@ -47,7 +47,6 @@ const MeetingRoom = () => {
   const [layout, setLayout] = useState<CallLayoutType>('speaker-left');
   const [showParticipants, setShowParticipants] = useState(false);
   const [meeting, setMeeting] = useState<Meeting | null>(null);
-  const [isLoadingMeeting, setIsLoadingMeeting] = useState(false);
   const [showShareMenu, setShowShareMenu] = useState(false);
   const { useCallCallingState } = useCallStateHooks();
 
