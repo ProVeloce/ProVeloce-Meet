@@ -1,22 +1,11 @@
 {
-  "buildCommand": "npm run build",
-  "devCommand": "npm run dev",
-  "installCommand": "npm install",
-  "framework": "nextjs",
-  "regions": ["iad1"],
-  "env": {
-    "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY": "@clerk_publishable_key",
-    "CLERK_SECRET_KEY": "@clerk_secret_key",
-    "NEXT_PUBLIC_STREAM_API_KEY": "@stream_api_key",
-    "STREAM_SECRET_KEY": "@stream_secret_key",
-    "NEXT_PUBLIC_API_URL": "@api_url",
-    "NEXT_PUBLIC_BASE_URL": "@base_url"
-  },
-  "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "https://your-backend-url.onrender.com/api/:path*"
-    }
-  ]
+    "buildCommand": "npm run build",
+    "devCommand": "npm run dev",
+    "installCommand": "npm install",
+    "framework": "nextjs",
+    "regions": ["iad1"],
+    "rewrites": [{
+        "source": "/api/:path*",
+        "destination": "https://proveloce-meet.onrender.com/api/:path*"
+    }]
 }
-
