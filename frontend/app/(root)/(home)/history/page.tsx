@@ -8,6 +8,8 @@ import Loader from '@/components/Loader';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import { useRouter } from 'next/navigation';
+import SEOHead from '@/components/SEOHead';
+import { generateBreadcrumbSchema } from '@/lib/seo-utils';
 
 const HistoryPage = () => {
   const { user, isLoaded } = useUser();
@@ -63,9 +65,24 @@ const HistoryPage = () => {
     return `${minutes}m ${secs}s`;
   };
 
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://proveloce-meet.vercel.app';
+  const breadcrumbSchema = generateBreadcrumbSchema([
+    { name: 'Home', url: baseUrl },
+    { name: 'Meeting History', url: `${baseUrl}/history` },
+  ]);
+
   return (
-    <section className="flex size-full flex-col gap-10 text-white p-6">
-      <h1 className="text-3xl font-bold">Meeting History</h1>
+    <>
+      <SEOHead
+        title="Meeting History - Your Meeting Activity"
+        description="View your complete meeting history including attended meetings, recordings, chat messages, and participant analytics."
+        keywords={['meeting history', 'meeting analytics', 'attendance tracking', 'meeting activity']}
+        canonicalUrl={`${baseUrl}/history`}
+        noindex={true} // Private user history should not be indexed
+        structuredData={breadcrumbSchema}
+      />
+      <section className="flex size-full flex-col gap-10 text-white p-6" role="main" aria-label="Meeting history">
+        <h1 className="text-3xl font-bold">Meeting History</h1>
 
       {history.length === 0 ? (
         <div className="flex items-center justify-center h-full">
@@ -157,7 +174,8 @@ const HistoryPage = () => {
           ))}
         </div>
       )}
-    </section>
+      </section>
+    </>
   );
 };
 

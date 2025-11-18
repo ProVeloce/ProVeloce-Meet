@@ -17,6 +17,13 @@ export interface IMeeting extends Document {
   recordingId?: string;
   status: 'scheduled' | 'ongoing' | 'ended' | 'cancelled';
   meetingLink: string;
+  // SEO fields
+  seoTitle?: string;
+  seoDescription?: string;
+  seoKeywords?: string[];
+  recordingFilename?: string; // SEO-friendly filename for recordings
+  thumbnailUrl?: string; // For social sharing
+  isPublic?: boolean; // Whether meeting can be indexed by search engines
   createdAt: Date;
   updatedAt: Date;
 }
@@ -74,6 +81,16 @@ const MeetingSchema = new Schema<IMeeting>(
       required: true,
       unique: true,
       index: true,
+    },
+    // SEO fields
+    seoTitle: String,
+    seoDescription: String,
+    seoKeywords: [String],
+    recordingFilename: String,
+    thumbnailUrl: String,
+    isPublic: {
+      type: Boolean,
+      default: false, // Meetings are private by default
     },
   },
   {

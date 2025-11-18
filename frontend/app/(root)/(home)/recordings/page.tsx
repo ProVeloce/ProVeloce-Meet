@@ -7,6 +7,8 @@ import { recordingApi, Recording } from '@/lib/recording-api';
 import Loader from '@/components/Loader';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
+import SEOHead from '@/components/SEOHead';
+import { generateBreadcrumbSchema, generateVideoObjectSchema } from '@/lib/seo-utils';
 
 const RecordingsPage = () => {
   const { user, isLoaded } = useUser();
@@ -61,9 +63,24 @@ const RecordingsPage = () => {
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://proveloce-meet.vercel.app';
+  const breadcrumbSchema = generateBreadcrumbSchema([
+    { name: 'Home', url: baseUrl },
+    { name: 'Recordings', url: `${baseUrl}/recordings` },
+  ]);
+
   return (
-    <section className="flex size-full flex-col gap-10 text-white p-6">
-      <h1 className="text-3xl font-bold">Recordings</h1>
+    <>
+      <SEOHead
+        title="Meeting Recordings - Host Dashboard"
+        description="View and manage your meeting recordings. Access secure video recordings of your hosted meetings with detailed analytics and playback controls."
+        keywords={['meeting recordings', 'video recordings', 'host dashboard', 'meeting playback']}
+        canonicalUrl={`${baseUrl}/recordings`}
+        noindex={true} // Private recordings should not be indexed
+        structuredData={breadcrumbSchema}
+      />
+      <section className="flex size-full flex-col gap-10 text-white p-6" role="main" aria-label="Meeting recordings">
+        <h1 className="text-3xl font-bold">Recordings</h1>
 
       {recordings.length === 0 ? (
         <div className="flex items-center justify-center h-full">
@@ -115,7 +132,8 @@ const RecordingsPage = () => {
           ))}
         </div>
       )}
-    </section>
+      </section>
+    </>
   );
 };
 

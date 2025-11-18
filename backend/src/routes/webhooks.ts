@@ -3,6 +3,29 @@ import { Meeting } from '../models/Meeting';
 // Webhook routes for external services (Stream.io, etc.)
 import { History } from '../models/History';
 
+// Helper function to generate SEO-friendly recording filename
+function generateRecordingFilename(title: string, hostName: string, startTime: Date, extension: string = 'mp4'): string {
+  // Sanitize title: lowercase, replace spaces with hyphens, remove special chars
+  const sanitizedTitle = title
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .substring(0, 50); // Limit length
+
+  // Sanitize host name
+  const sanitizedHost = hostName
+    .toLowerCase()
+    .replace(/[^a-z0-9\s-]/g, '')
+    .replace(/\s+/g, '-')
+    .substring(0, 30);
+
+  // Format date: YYYY-MM-DD
+  const dateStr = startTime.toISOString().split('T')[0];
+
+  // Format: title-hostname-YYYY-MM-DD.mp4
+  return `${sanitizedTitle}-${sanitizedHost}-${dateStr}.${extension}`;
+}
+
 const router = Router();
 
 // Stream.io webhook handler for recording completion
@@ -24,9 +47,15 @@ router.post('/stream/recording', async (req: Request, res: Response) => {
         return res.status(404).json({ error: 'Meeting not found' });
       }
 
-      // Update meeting with recording info
+      // Generate SEO-friendly filename for recording
+      const recordingFilename = meeting.startTime
+        ? generateRecordingFilename(meeting.title, meeting.hostName, meeting.startTime)
+        : generateRecordingFilename(meeting.title, meeting.hostName, new Date());
+
+      // Update meeting with recording info and SEO metadata
       meeting.recordingUrl = recordingUrl;
       meeting.recordingId = recordingId;
+      meeting.recordingFilename = recordingFilename;
       await meeting.save();
 
       // Create history entry

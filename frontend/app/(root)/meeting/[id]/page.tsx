@@ -8,6 +8,8 @@ import { Loader } from 'lucide-react';
 
 import { useGetCallById } from '@/hooks/useGetCallById';
 import { participantApi } from '@/lib/participant-api';
+import SEOHead from '@/components/SEOHead';
+import { generateMeetingTitle, generateMeetingDescription, generateMeetingEventSchema } from '@/lib/seo-utils';
 import Alert from '@/components/Alert';
 import MeetingSetup from '@/components/MeetingSetup';
 import MeetingRoom from '@/components/MeetingRoom';
@@ -95,18 +97,45 @@ const MeetingPage = () => {
     );
   }
 
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://proveloce-meet.vercel.app';
+  const meetingId = Array.isArray(id) ? id[0] : id;
+  const meetingUrl = `${baseUrl}/meeting/${meetingId}`;
+  
+  // Generate SEO metadata (meetings are private by default - noindex)
+  const seoTitle = meeting ? generateMeetingTitle(meeting.title, meeting.hostName) : 'Video Meeting';
+  const seoDescription = meeting 
+    ? generateMeetingDescription(meeting.title, meeting.hostName, meeting.scheduledTime ? new Date(meeting.scheduledTime) : undefined, meeting.type)
+    : 'Join a secure video meeting on ProVeloce Meet';
+  
+  const structuredData = meeting ? generateMeetingEventSchema(
+    meeting.title,
+    meeting.hostName,
+    meeting.scheduledTime ? new Date(meeting.scheduledTime) : undefined,
+    meetingUrl,
+    baseUrl
+  ) : undefined;
+
   return (
-    <main className="h-screen w-full">
-      <StreamCall call={streamCall}>
-        <StreamTheme>
-          {!isSetupComplete ? (
-            <MeetingSetup setIsSetupComplete={setIsSetupComplete} />
-          ) : (
-            <MeetingRoom />
-          )}
-        </StreamTheme>
-      </StreamCall>
-    </main>
+    <>
+      <SEOHead
+        title={seoTitle}
+        description={seoDescription}
+        canonicalUrl={meetingUrl}
+        noindex={true} // Private meetings should not be indexed
+        structuredData={structuredData}
+      />
+      <main className="h-screen w-full" role="main" aria-label="Video meeting room">
+        <StreamCall call={streamCall}>
+          <StreamTheme>
+            {!isSetupComplete ? (
+              <MeetingSetup setIsSetupComplete={setIsSetupComplete} />
+            ) : (
+              <MeetingRoom />
+            )}
+          </StreamTheme>
+        </StreamCall>
+      </main>
+    </>
   );
 };
 

@@ -54,6 +54,18 @@ router.post('/', verifyAuth, async (req: Request, res: Response) => {
       ? `${displayName}'s Meeting Room`
       : title;
 
+    // Generate SEO metadata
+    const seoTitle = `${meetingTitle} by ${displayName} - ProVeloce Meet`;
+    const seoDescription = description || 
+      `Join ${meetingTitle}${scheduledTime ? ` scheduled for ${new Date(scheduledTime).toLocaleDateString()}` : ''}. ${type.charAt(0).toUpperCase() + type.slice(1)} video meeting on ProVeloce Meet - secure online meeting platform.`;
+    const seoKeywords = [
+      'video meeting',
+      'online meeting',
+      'video conferencing',
+      type === 'scheduled' ? 'scheduled meeting' : type === 'personal' ? 'personal room' : 'instant meeting',
+      'secure collaboration',
+    ];
+
     // Create meeting in MongoDB
     // For personal rooms, set status to 'ongoing' since they're started immediately
     const meeting = new Meeting({
@@ -70,6 +82,11 @@ router.post('/', verifyAuth, async (req: Request, res: Response) => {
       status: (type === 'instant' || type === 'personal') ? 'ongoing' : 'scheduled',
       startTime: (type === 'instant' || type === 'personal') ? new Date() : undefined,
       meetingLink,
+      // SEO fields
+      seoTitle,
+      seoDescription,
+      seoKeywords,
+      isPublic: false, // Meetings are private by default
     });
 
     await meeting.save();
