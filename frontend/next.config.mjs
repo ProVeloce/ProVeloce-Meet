@@ -32,12 +32,6 @@ const nextConfig = {
   swcMinify: true,
   reactStrictMode: true,
   
-  // Bundle optimization
-  // Note: optimizeCss requires 'critters' package - removed to fix build
-  // experimental: {
-  //   optimizeCss: true,
-  // },
-  
   // Headers for SEO and security
   async headers() {
     return [
