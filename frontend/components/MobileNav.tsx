@@ -40,9 +40,9 @@ const MobileNav = () => {
                 width={32}
                 height={32}
                 alt="ProVeloce Meet logo"
-                className="w-8 h-8 icon-dark"
+                className="w-8 h-8 icon-blue"
               />
-              <p className="text-xl font-bold text-text-primary">ProVeloce Meet</p>
+              <p className="text-xl font-bold text-google-blue">ProVeloce Meet</p>
             </Link>
             <div className="sm:hidden">
               <Clock />
@@ -73,13 +73,16 @@ const MobileNav = () => {
                           alt=""
                           width={20}
                           height={20}
-                          className={cn('transition-opacity icon-dark', {
-                            'opacity-100': isActive,
-                            'opacity-70': !isActive,
+                          className={cn('transition-all duration-200', {
+                            'icon-white': isActive,
+                            'icon-blue': !isActive,
                           })}
                           aria-hidden="true"
                         />
-                        <span className="font-medium text-base">{item.label}</span>
+                        <span className={cn('font-medium text-base transition-colors', {
+                          'text-white': isActive,
+                          'text-text-primary': !isActive,
+                        })}>{item.label}</span>
                       </Link>
                     </SheetClose>
                   );

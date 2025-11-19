@@ -38,13 +38,16 @@ const Sidebar = () => {
                 alt=""
                 width={20}
                 height={20}
-                className={cn('transition-opacity icon-dark', {
-                  'opacity-100': isActive,
-                  'opacity-70': !isActive,
+                className={cn('transition-all duration-200', {
+                  'icon-white': isActive,
+                  'icon-blue': !isActive,
                 })}
                 aria-hidden="true"
               />
-              <span className="text-base font-medium max-lg:hidden">
+              <span className={cn('text-base font-medium max-lg:hidden transition-colors', {
+                'text-white': isActive,
+                'text-text-primary': !isActive,
+              })}>
                 {item.label}
               </span>
             </Link>

@@ -26,10 +26,10 @@ const Navbar = () => {
             width={32}
             height={32}
             alt="ProVeloce Meet logo"
-            className="w-8 h-8 sm:w-9 sm:h-9 icon-dark"
+            className="w-8 h-8 sm:w-9 sm:h-9 icon-blue"
             priority
           />
-          <p className="text-xl sm:text-2xl font-bold text-text-primary max-sm:hidden">
+          <p className="text-xl sm:text-2xl font-bold text-google-blue max-sm:hidden">
             ProVeloce Meet
           </p>
         </Link>

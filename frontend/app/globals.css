@@ -182,23 +182,28 @@ body {
 
 /* =============================== */
 
-/* SVG Icon Styling - Make icons clearly visible in black */
+/* SVG Icon Styling - Make icons clearly visible */
+
+/* Blue icons for brand consistency - Google Blue (#1A73E8) */
+.icon-blue {
+  filter: brightness(0) saturate(100%) invert(27%) sepia(96%) saturate(2476%) hue-rotate(210deg) brightness(95%) contrast(92%);
+}
+
+/* White icons for colored backgrounds */
+.icon-white {
+  filter: brightness(0) saturate(100%) invert(100%);
+}
+
+/* Black icons for light backgrounds (fallback) */
 .icon-dark {
   filter: brightness(0) saturate(100%);
 }
 
-/* For icons on colored/blue backgrounds (like active sidebar items), make them white */
-.bg-google-blue .icon-dark,
-[class*="bg-google-blue"] .icon-dark,
-.text-white .icon-dark {
+/* For icons on colored/blue backgrounds, make them white */
+.bg-google-blue .icon-blue,
+[class*="bg-google-blue"] .icon-blue,
+.text-white .icon-blue {
   filter: brightness(0) saturate(100%) invert(100%);
-}
-
-/* Ensure icons are dark on light backgrounds */
-.bg-white .icon-dark,
-.bg-light-2 .icon-dark,
-.bg-light-3 .icon-dark {
-  filter: brightness(0) saturate(100%);
 }
 
 @layer utilities {
