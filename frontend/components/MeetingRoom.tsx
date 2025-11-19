@@ -214,7 +214,7 @@ const MeetingRoom = () => {
               </div>
             </PopoverContent>
           </Popover>
-        </div>
+        </motion.div>
       )}
 
       <motion.div 
