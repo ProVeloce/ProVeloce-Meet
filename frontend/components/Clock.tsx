@@ -57,7 +57,7 @@ const Clock = () => {
   return (
     <time 
       dateTime={time} 
-      className="text-sm font-semibold text-white/90 tabular-nums select-none transition-opacity duration-200"
+      className="text-sm font-semibold text-text-secondary tabular-nums select-none transition-opacity duration-200"
       suppressHydrationWarning
       aria-live="polite"
       aria-label={`Current time: ${time}`}

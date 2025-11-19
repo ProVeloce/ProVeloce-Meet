@@ -10,8 +10,12 @@ const Sidebar = () => {
   const pathname = usePathname();
 
   return (
-    <section className="sticky left-0 top-0 flex h-screen w-fit flex-col  justify-between  bg-dark-1 p-6 pt-28 text-white max-sm:hidden lg:w-[264px]">
-      <div className="flex flex-1 flex-col gap-6">
+    <aside 
+      className="sticky left-0 top-16 flex h-[calc(100vh-4rem)] w-fit flex-col justify-between bg-white border-r border-light-4 p-4 pt-6 text-text-primary max-sm:hidden lg:w-[240px]"
+      role="navigation"
+      aria-label="Sidebar navigation"
+    >
+      <nav className="flex flex-1 flex-col gap-2" aria-label="Main navigation">
         {sidebarLinks.map((item) => {
           const isActive = pathname === item.route || pathname.startsWith(`${item.route}/`);
           
@@ -20,26 +24,34 @@ const Sidebar = () => {
               href={item.route}
               key={item.label}
               className={cn(
-                'flex gap-4 items-center p-4 rounded-lg justify-start',
+                'flex gap-3 items-center px-4 py-3 rounded-lg justify-start transition-all duration-200',
+                'hover:bg-light-2 focus:outline-none focus:ring-2 focus:ring-google-blue focus:ring-offset-2',
                 {
-                  'bg-blue-1': isActive,
+                  'bg-google-blue text-white shadow-sm': isActive,
+                  'text-text-secondary hover:text-text-primary': !isActive,
                 }
               )}
+              aria-current={isActive ? 'page' : undefined}
             >
               <Image
                 src={item.imgURL}
-                alt={item.label}
-                width={24}
-                height={24}
+                alt=""
+                width={20}
+                height={20}
+                className={cn('transition-opacity', {
+                  'opacity-100': isActive,
+                  'opacity-70': !isActive,
+                })}
+                aria-hidden="true"
               />
-              <p className="text-lg font-semibold max-lg:hidden">
+              <span className="text-base font-medium max-lg:hidden">
                 {item.label}
-              </p>
+              </span>
             </Link>
           );
         })}
-      </div>
-    </section>
+      </nav>
+    </aside>
   );
 };
 

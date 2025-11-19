@@ -47,17 +47,17 @@ const Home = () => {
         structuredData={structuredData}
         canonicalUrl={baseUrl}
       />
-      <section className="flex size-full flex-col gap-5 text-white" role="main" aria-label="Home dashboard">
-        <div className="h-[303px] w-full rounded-[20px] bg-hero bg-cover" role="banner" aria-label="Hero section">
-          <div className="flex h-full flex-col justify-between max-md:px-5 max-md:py-8 lg:p-11">
+      <section className="flex size-full flex-col gap-6 text-text-primary" role="main" aria-label="Home dashboard">
+        <div className="h-[280px] sm:h-[320px] w-full rounded-xl bg-gradient-to-br from-google-blue to-zoom-blue shadow-lg overflow-hidden" role="banner" aria-label="Hero section">
+          <div className="flex h-full flex-col justify-between p-6 sm:p-8 lg:p-11">
             <div>
               <UpcomingMeeting />
             </div>
             <div className="flex flex-col gap-2">
-              <h1 className="text-4xl font-extrabold lg:text-7xl tabular-nums text-white" aria-live="polite">
+              <h1 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold tabular-nums text-white drop-shadow-sm" aria-live="polite">
                 <DashboardClock className="text-white" />
               </h1>
-              <p className="text-lg font-medium text-sky-1 lg:text-2xl" aria-label={`Current date: ${date}`}>
+              <p className="text-base sm:text-lg lg:text-xl font-medium text-white/95" aria-label={`Current date: ${date}`}>
                 {date}
               </p>
             </div>

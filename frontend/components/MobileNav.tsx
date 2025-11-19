@@ -3,6 +3,7 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { Menu } from 'lucide-react';
 
 import { Sheet, SheetClose, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { sidebarLinks } from '@/constants';
@@ -16,59 +17,74 @@ const MobileNav = () => {
     <section className="w-full max-w-[264px]">
       <Sheet>
         <SheetTrigger asChild>
-          <Image
-            src="/icons/hamburger.svg"
-            width={36}
-            height={36}
-            alt="hamburger icon"
-            className="cursor-pointer sm:hidden"
-          />
+          <button
+            className="inline-flex items-center justify-center rounded-md p-2 text-text-primary hover:bg-light-2 hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-google-blue focus:ring-offset-2 transition-colors sm:hidden"
+            aria-label="Open navigation menu"
+            aria-expanded="false"
+          >
+            <Menu className="h-6 w-6" aria-hidden="true" />
+          </button>
         </SheetTrigger>
-        <SheetContent side="left" className="border-r border-dark-3 bg-dark-1/95 backdrop-blur-md">
-          <div className="flex-between mb-6">
-            <Link href="/" className="flex items-center gap-1">
+        <SheetContent 
+          side="left" 
+          className="border-r border-light-4 bg-white w-[280px] sm:w-[300px]"
+        >
+          <div className="flex items-center justify-between mb-8 pb-6 border-b border-light-4">
+            <Link 
+              href="/" 
+              className="flex items-center gap-2.5 focus:outline-none focus:ring-2 focus:ring-google-blue focus:ring-offset-2 rounded-md"
+              onClick={() => document.dispatchEvent(new CustomEvent('sheet-close'))}
+            >
               <Image
                 src="/icons/logo.svg"
                 width={32}
                 height={32}
                 alt="ProVeloce Meet logo"
+                className="w-8 h-8"
               />
-              <p className="text-[26px] font-extrabold text-white">ProVeloce Meet</p>
+              <p className="text-xl font-bold text-text-primary">ProVeloce Meet</p>
             </Link>
-            <div className="md:hidden">
+            <div className="sm:hidden">
               <Clock />
             </div>
           </div>
-          <div className="flex h-[calc(100vh-72px)] flex-col justify-between overflow-y-auto">
+          <div className="flex h-[calc(100vh-120px)] flex-col justify-between overflow-y-auto">
             <SheetClose asChild>
-              <section className=" flex h-full flex-col gap-6 pt-16 text-white">
+              <nav className="flex flex-col gap-1" aria-label="Mobile navigation">
                 {sidebarLinks.map((item) => {
-                  const isActive = pathname === item.route;
+                  const isActive = pathname === item.route || pathname.startsWith(`${item.route}/`);
 
                   return (
                     <SheetClose asChild key={item.route}>
                       <Link
                         href={item.route}
-                        key={item.label}
                         className={cn(
-                          'flex gap-4 items-center p-4 rounded-lg w-full max-w-60',
+                          'flex gap-3 items-center px-4 py-3 rounded-lg w-full transition-all duration-200',
+                          'focus:outline-none focus:ring-2 focus:ring-google-blue focus:ring-offset-2',
                           {
-                            'bg-blue-1 hover:bg-blue-2': isActive,
+                            'bg-google-blue text-white shadow-sm': isActive,
+                            'text-text-secondary hover:bg-light-2 hover:text-text-primary': !isActive,
                           }
                         )}
+                        aria-current={isActive ? 'page' : undefined}
                       >
                         <Image
                           src={item.imgURL}
-                          alt={item.label}
+                          alt=""
                           width={20}
                           height={20}
+                          className={cn('transition-opacity', {
+                            'opacity-100': isActive,
+                            'opacity-70': !isActive,
+                          })}
+                          aria-hidden="true"
                         />
-                        <p className="font-semibold">{item.label}</p>
+                        <span className="font-medium text-base">{item.label}</span>
                       </Link>
                     </SheetClose>
                   );
                 })}
-              </section>
+              </nav>
             </SheetClose>
           </div>
         </SheetContent>

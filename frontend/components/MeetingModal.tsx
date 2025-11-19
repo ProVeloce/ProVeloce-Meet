@@ -34,33 +34,32 @@ const MeetingModal = ({
 }: MeetingModalProps) => {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="flex w-full max-w-[520px] flex-col gap-6 border border-dark-3 bg-dark-2 px-6 py-9 text-white card-shadow-lg">
+      <DialogContent className="flex w-full max-w-[520px] flex-col gap-6 border border-light-4 bg-white px-6 py-8 text-text-primary shadow-xl">
         <div className="flex flex-col gap-6">
           {image && (
             <div className="flex justify-center">
-              <Image src={image} alt="checked" width={72} height={72} />
+              <Image src={image} alt="" width={72} height={72} aria-hidden="true" />
             </div>
           )}
-          <h1 className={cn("text-3xl font-bold leading-[42px]", className)}>
+          <h2 className={cn("text-2xl sm:text-3xl font-bold leading-tight text-text-primary", className)}>
             {title}
-          </h1>
+          </h2>
           {children}
           <Button
-            className={
-              "bg-blue-1 hover:bg-blue-2 focus-visible:ring-0 focus-visible:ring-offset-0 transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
-            }
+            className="w-full"
             onClick={handleClick}
             disabled={buttonDisabled}
           >
             {buttonIcon && (
               <Image
                 src={buttonIcon}
-                alt="button icon"
+                alt=""
                 width={13}
                 height={13}
+                aria-hidden="true"
               />
-            )}{" "}
-            &nbsp;
+            )}
+            {buttonIcon && <span className="ml-2" />}
             {buttonText || "Schedule Meeting"}
           </Button>
         </div>
