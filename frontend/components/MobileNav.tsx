@@ -35,14 +35,16 @@ const MobileNav = () => {
               className="flex items-center gap-2.5 focus:outline-none focus:ring-2 focus:ring-google-blue focus:ring-offset-2 rounded-md"
               onClick={() => document.dispatchEvent(new CustomEvent('sheet-close'))}
             >
-              <Image
-                src="/icons/logo.svg"
-                width={32}
-                height={32}
-                alt="ProVeloce Meet logo"
-                className="w-8 h-8 icon-blue"
-              />
-              <p className="text-xl font-bold text-google-blue">ProVeloce Meet</p>
+              <div className="logo-gradient-wrapper relative">
+                <Image
+                  src="/icons/logo.svg"
+                  width={32}
+                  height={32}
+                  alt="ProVeloce Meet logo"
+                  className="w-8 h-8 logo-gradient"
+                />
+              </div>
+              <p className="text-xl font-bold gradient-text">ProVeloce Meet</p>
             </Link>
             <div className="sm:hidden">
               <Clock />

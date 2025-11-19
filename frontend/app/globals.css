@@ -143,7 +143,12 @@ body {
 /* ==== clerk class override ===== */
 
 .cl-userButtonPopoverActionButtonIcon {
-  color: white;
+  color: #000000;
+  transition: color 0.3s ease;
+}
+
+.cl-userButtonPopoverActionButton:hover .cl-userButtonPopoverActionButtonIcon {
+  color: #1A73E8;
 }
 
 .cl-logoBox {
@@ -151,38 +156,184 @@ body {
 }
 
 .cl-dividerLine {
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(0, 0, 0, 0.1);
   height: 1px;
 }
 
 .cl-socialButtonsIconButton {
-  border: 2px solid rgba(255, 255, 255, 0.2);
+  border: 2px solid rgba(0, 0, 0, 0.1);
   border-radius: 8px;
   transition: all 0.2s ease;
 }
 
 .cl-socialButtonsIconButton:hover {
-  border-color: rgba(59, 130, 246, 0.5);
-  background: rgba(59, 130, 246, 0.1);
+  border-color: rgba(26, 115, 232, 0.5);
+  background: rgba(26, 115, 232, 0.1);
 }
 
 .cl-internal-wkkub3 {
-  color: white;
+  color: #000000;
 }
 
+/* Profile Menu Items - Visible by default, gradient on hover */
 .cl-userButtonPopoverActionButton {
-  color: white;
+  color: #000000 !important;
   border-radius: 8px;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 1 !important;
+  visibility: visible !important;
+  transform: scale(1) !important;
+  pointer-events: auto !important;
+  min-height: 40px !important;
+  padding: 8px 12px !important;
 }
 
 .cl-userButtonPopoverActionButton:hover {
-  background: rgba(59, 130, 246, 0.1);
+  background: rgba(241, 243, 244, 0.8);
+}
+
+/* Profile Menu Text - Black by default, gradient on hover */
+.cl-userButtonPopoverActionButtonText,
+.cl-userButtonPopoverActionButton span:not(.cl-userButtonPopoverActionButtonIcon),
+.cl-userButtonPopoverActionButton p {
+  color: #000000 !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: inline-block !important;
+}
+
+/* Ensure icons remain visible and don't get gradient */
+.cl-userButtonPopoverActionButtonIcon,
+.cl-userButtonPopoverActionButton svg,
+.cl-userButtonPopoverActionButton img {
+  color: #000000 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+  transition: color 0.3s ease;
+}
+
+.cl-userButtonPopoverActionButton:hover .cl-userButtonPopoverActionButtonIcon,
+.cl-userButtonPopoverActionButton:hover svg {
+  color: #1A73E8 !important;
+}
+
+/* Gradient hover effect for profile menu text items */
+.profile-menu-item:hover .profile-menu-text,
+.cl-userButtonPopoverActionButton:hover .cl-userButtonPopoverActionButtonText,
+.cl-userButtonPopoverActionButton:hover > span:not(.cl-userButtonPopoverActionButtonIcon):not(svg),
+.cl-userButtonPopoverActionButton:hover p {
+  background: linear-gradient(135deg, #3B82F6 0%, #8B5CF6 50%, #EC4899 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-size: 200% 200%;
+  animation: gradient-move 2s ease infinite;
+  color: transparent !important;
+}
+
+/* Gradient animation for shimmer effect */
+@keyframes gradient-move {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
+
+/* Ensure all Clerk menu elements are visible */
+.cl-userButtonPopoverCard,
+.cl-userButtonPopoverContent,
+.cl-userButtonPopoverActions {
+  opacity: 1 !important;
+  visibility: visible !important;
+  display: block !important;
+}
+
+.cl-userButtonPopoverCard {
+  background: #FFFFFF !important;
+  border: 1px solid rgba(0, 0, 0, 0.1) !important;
+}
+
+/* User info text in profile menu */
+.cl-userButtonPopoverUserInfo,
+.cl-userButtonPopoverUserInfoText,
+.cl-userButtonPopoverUserInfoTextPrimary,
+.cl-userButtonPopoverUserInfoTextSecondary {
+  color: #000000 !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
+/* Ensure text elements in profile menu are visible */
+.cl-userButtonPopoverCard .cl-userButtonPopoverActionButtonText,
+.cl-userButtonPopoverCard span:not(.cl-userButtonPopoverActionButtonIcon),
+.cl-userButtonPopoverCard p {
+  opacity: 1 !important;
+  visibility: visible !important;
 }
 
 /* =============================== */
 
 /* SVG Icon Styling - Make icons clearly visible */
+
+/* Logo with colorful gradient effect - matching ProVeloce brand */
+.logo-gradient {
+  /* Use CSS filters to create a vibrant gradient effect */
+  filter: 
+    brightness(1.1) 
+    saturate(1.3)
+    drop-shadow(0 0 3px rgba(59, 130, 246, 0.4))
+    drop-shadow(0 0 6px rgba(16, 185, 129, 0.3))
+    drop-shadow(0 0 9px rgba(251, 191, 36, 0.2));
+  transition: filter 0.3s ease;
+}
+
+.logo-gradient:hover {
+  filter: 
+    brightness(1.2) 
+    saturate(1.4)
+    drop-shadow(0 0 4px rgba(59, 130, 246, 0.5))
+    drop-shadow(0 0 8px rgba(16, 185, 129, 0.4))
+    drop-shadow(0 0 12px rgba(251, 191, 36, 0.3));
+}
+
+/* Alternative: Wrapper approach for true gradient on SVG */
+.logo-gradient-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.logo-gradient-wrapper::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, #3B82F6 0%, #10B981 25%, #FBBF24 50%, #F97316 75%, #EF4444 100%);
+  border-radius: 50%;
+  opacity: 0.3;
+  z-index: -1;
+  filter: blur(8px);
+}
+
+/* Gradient text for ProVeloce Meet brand name */
+.gradient-text {
+  background: linear-gradient(135deg, #3B82F6 0%, #10B981 20%, #FBBF24 40%, #F97316 60%, #EF4444 80%, #EC4899 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-size: 200% 200%;
+  animation: gradient-shift 3s ease infinite;
+}
+
+@keyframes gradient-shift {
+  0%, 100% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+}
 
 /* Blue icons for brand consistency - Google Blue (#1A73E8) */
 .icon-blue {

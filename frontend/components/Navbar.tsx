@@ -21,15 +21,17 @@ const Navbar = () => {
           className="flex items-center gap-2.5 hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-google-blue focus:ring-offset-2 rounded-md"
           aria-label="ProVeloce Meet Home"
         >
-          <Image
-            src="/icons/logo.svg"
-            width={32}
-            height={32}
-            alt="ProVeloce Meet logo"
-            className="w-8 h-8 sm:w-9 sm:h-9 icon-blue"
-            priority
-          />
-          <p className="text-xl sm:text-2xl font-bold text-google-blue max-sm:hidden">
+          <div className="logo-gradient-wrapper relative">
+            <Image
+              src="/icons/logo.svg"
+              width={32}
+              height={32}
+              alt="ProVeloce Meet logo"
+              className="w-8 h-8 sm:w-9 sm:h-9 logo-gradient"
+              priority
+            />
+          </div>
+          <p className="text-xl sm:text-2xl font-bold gradient-text max-sm:hidden">
             ProVeloce Meet
           </p>
         </Link>
@@ -49,12 +51,13 @@ const Navbar = () => {
                 appearance={{
                   elements: {
                     avatarBox: "w-9 h-9 sm:w-10 sm:h-10",
-                    userButtonPopoverCard: "shadow-lg border border-light-4",
-                    userButtonPopoverActionButton: "text-text-primary hover:bg-light-2",
-                    userButtonPopoverActionButtonText: "text-text-primary",
+                    userButtonPopoverCard: "shadow-lg border border-light-4 bg-white",
+                    userButtonPopoverActionButton: "text-black hover:bg-light-2 profile-menu-item",
+                    userButtonPopoverActionButtonText: "text-black profile-menu-text",
+                    userButtonPopoverFooter: "hidden",
                   },
                   variables: {
-                    colorText: "#202124",
+                    colorText: "#000000",
                     colorPrimary: "#1A73E8",
                     colorBackground: "#FFFFFF",
                   }
