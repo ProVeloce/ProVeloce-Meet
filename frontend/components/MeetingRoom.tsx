@@ -30,6 +30,7 @@ import {
 import Loader from './Loader';
 import EndCallButton from './EndCallButton';
 import MeetingChat from './MeetingChat';
+import ScreenShareButton from './ScreenShareButton';
 import { cn } from '@/lib/utils';
 import { meetingApi, Meeting } from '@/lib/meeting-api';
 import { participantApi } from '@/lib/participant-api';
@@ -262,6 +263,7 @@ const MeetingRoom = () => {
           </DropdownMenuContent>
         </DropdownMenu>
         <CallStatsButton />
+        <ScreenShareButton />
         <button onClick={() => setShowParticipants((prev) => !prev)}>
           <div className=" cursor-pointer rounded-2xl bg-[#19232d] px-4 py-2 hover:bg-[#4c535b]  ">
             <Users size={20} className="text-white" />
