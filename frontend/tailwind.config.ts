@@ -19,53 +19,72 @@ const config = {
     },
     extend: {
       colors: {
-        // Modern dark theme with professional gradients
-        dark: {
-          1: '#0F172A', // Slate 900 - Primary dark
-          2: '#1E293B', // Slate 800 - Secondary dark
-          3: '#334155', // Slate 700 - Tertiary dark
-          4: '#475569', // Slate 600 - Accent dark
+        // Google Meet / Zoom inspired color palette
+        // Light theme backgrounds (Google Meet style)
+        light: {
+          1: '#FFFFFF', // Pure white
+          2: '#F8F9FA', // Light gray background
+          3: '#F1F3F4', // Subtle gray
+          4: '#E8EAED', // Border gray
         },
-        // Professional blue palette
-        blue: {
-          1: '#3B82F6', // Blue 500 - Primary
-          2: '#2563EB', // Blue 600 - Hover
-          3: '#1D4ED8', // Blue 700 - Active
-          4: '#60A5FA', // Blue 400 - Light
+        // Google Blue palette (primary brand color)
+        google: {
+          blue: '#1A73E8', // Google Blue primary
+          'blue-dark': '#1557B0', // Darker blue for hover
+          'blue-light': '#4285F4', // Lighter blue
+          green: '#34A853', // Google Green (success)
+          yellow: '#FBBC04', // Google Yellow
+          red: '#EA4335', // Google Red (error)
         },
-        // Clean sky/light palette
-        sky: {
-          1: '#E0F2FE', // Sky 100
-          2: '#BAE6FD', // Sky 200
-          3: '#F0F9FF', // Sky 50
+        // Zoom Blue palette
+        zoom: {
+          blue: '#0E72ED', // Zoom Blue
+          'blue-dark': '#0B5BC4', // Darker blue
+          'blue-light': '#3B8FF5', // Lighter blue
+        },
+        // Meeting room dark theme (for video calls)
+        meeting: {
+          dark: '#202124', // Google Meet dark background
+          'dark-2': '#2D2E30', // Secondary dark
+          'dark-3': '#3C4043', // Tertiary dark
+          overlay: 'rgba(0, 0, 0, 0.5)', // Overlay
         },
         // Accent colors
-        orange: {
-          1: '#F97316', // Orange 500
-          2: '#EA580C', // Orange 600
+        accent: {
+          primary: '#1A73E8', // Primary accent (Google Blue)
+          secondary: '#34A853', // Success/Green
+          warning: '#FBBC04', // Warning/Yellow
+          error: '#EA4335', // Error/Red
         },
-        purple: {
-          1: '#8B5CF6', // Violet 500
-          2: '#7C3AED', // Violet 600
+        // Text colors
+        text: {
+          primary: '#202124', // Primary text (dark)
+          secondary: '#5F6368', // Secondary text (gray)
+          tertiary: '#80868B', // Tertiary text (light gray)
+          inverse: '#FFFFFF', // White text for dark backgrounds
         },
-        yellow: {
-          1: '#FBBF24', // Amber 400
-          2: '#F59E0B', // Amber 500
+        // Legacy dark theme (for backward compatibility)
+        dark: {
+          1: '#202124', // Updated to Google Meet dark
+          2: '#2D2E30', // Updated
+          3: '#3C4043', // Updated
+          4: '#5F6368', // Updated
         },
-        // Success and error states
+        // Legacy blue (mapped to Google Blue)
+        blue: {
+          1: '#1A73E8', // Google Blue
+          2: '#1557B0', // Darker
+          3: '#0E72ED', // Zoom Blue variant
+          4: '#4285F4', // Light
+        },
+        // Success and error (Google colors)
         success: {
-          1: '#10B981', // Emerald 500
-          2: '#059669', // Emerald 600
+          1: '#34A853', // Google Green
+          2: '#2E7D32', // Darker green
         },
         error: {
-          1: '#EF4444', // Red 500
-          2: '#DC2626', // Red 600
-        },
-        // Neutral grays
-        gray: {
-          1: '#F8FAFC', // Slate 50
-          2: '#F1F5F9', // Slate 100
-          3: '#E2E8F0', // Slate 200
+          1: '#EA4335', // Google Red
+          2: '#C5221F', // Darker red
         },
       },
       keyframes: {
@@ -77,10 +96,45 @@ const config = {
           from: { height: 'var(--radix-accordion-content-height)' },
           to: { height: '0' },
         },
+        'fade-in': {
+          from: { opacity: '0' },
+          to: { opacity: '1' },
+        },
+        'fade-in-up': {
+          from: { opacity: '0', transform: 'translateY(20px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        'fade-in-down': {
+          from: { opacity: '0', transform: 'translateY(-20px)' },
+          to: { opacity: '1', transform: 'translateY(0)' },
+        },
+        'slide-in-right': {
+          from: { opacity: '0', transform: 'translateX(-20px)' },
+          to: { opacity: '1', transform: 'translateX(0)' },
+        },
+        'slide-in-left': {
+          from: { opacity: '0', transform: 'translateX(20px)' },
+          to: { opacity: '1', transform: 'translateX(0)' },
+        },
+        'scale-in': {
+          from: { opacity: '0', transform: 'scale(0.95)' },
+          to: { opacity: '1', transform: 'scale(1)' },
+        },
+        'pulse-soft': {
+          '0%, 100%': { opacity: '1' },
+          '50%': { opacity: '0.8' },
+        },
       },
       animation: {
         'accordion-down': 'accordion-down 0.2s ease-out',
         'accordion-up': 'accordion-up 0.2s ease-out',
+        'fade-in': 'fade-in 0.3s ease-out',
+        'fade-in-up': 'fade-in-up 0.4s ease-out',
+        'fade-in-down': 'fade-in-down 0.4s ease-out',
+        'slide-in-right': 'slide-in-right 0.3s ease-out',
+        'slide-in-left': 'slide-in-left 0.3s ease-out',
+        'scale-in': 'scale-in 0.3s ease-out',
+        'pulse-soft': 'pulse-soft 2s ease-in-out infinite',
       },
       backgroundImage: {
         hero: "url('/images/hero-background.png')",

@@ -42,7 +42,6 @@ const Home = () => {
   return (
     <>
       <SEOHead
-        title="Secure Online Meeting Platform - Real-Time Video Calling"
         description="Professional video conferencing software for businesses. Host secure online meetings with real-time collaboration, meeting recording, and participant analytics. Browser-based WebRTC solution."
         keywords={[...SEO_KEYWORDS.primary, ...SEO_KEYWORDS.secondary]}
         structuredData={structuredData}

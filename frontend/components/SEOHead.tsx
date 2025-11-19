@@ -13,7 +13,7 @@ export interface SEOHeadProps {
   structuredData?: object;
 }
 
-const defaultTitle = 'ProVeloce Meet - Secure Online Meeting Platform | Real-Time Video Calling';
+const defaultTitle = 'ProVeloce Meet';
 const defaultDescription = 'Professional video conferencing software for businesses. Host secure online meetings with real-time collaboration, meeting recording, and participant analytics. Browser-based WebRTC solution.';
 const defaultKeywords = [
   'secure online meeting platform',

@@ -1,7 +1,7 @@
 import { ReactNode } from "react";
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
-import { Inter } from "next/font/google";
+import { Roboto } from "next/font/google";
 
 import "@stream-io/video-react-sdk/dist/css/styles.css";
 import "react-datepicker/dist/react-datepicker.css";
@@ -10,11 +10,17 @@ import { Toaster } from "@/components/ui/toaster";
 import AuthHeader from "@/components/AuthHeader";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
-const inter = Inter({ subsets: ["latin"] });
+// Use Roboto font (Google's standard font, similar to Google Sans)
+const roboto = Roboto({ 
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "700"],
+  variable: "--font-roboto",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
   title: {
-    default: "ProVeloce Meet - Secure Online Meeting Platform | Real-Time Video Calling",
+    default: "ProVeloce Meet",
     template: "%s | ProVeloce Meet",
   },
   description: "Professional video conferencing software for businesses. Host secure online meetings with real-time collaboration, meeting recording, and participant analytics. Browser-based WebRTC solution.",
@@ -87,16 +93,16 @@ export default function RootLayout({
           logoImageUrl: "/icons/logo.svg",
         },
         variables: {
-          colorText: "#fff",
-          colorPrimary: "#3B82F6",
-          colorBackground: "#0F172A",
-          colorInputBackground: "#1E293B",
-          colorInputText: "#fff",
+          colorText: "#202124",
+          colorPrimary: "#1A73E8",
+          colorBackground: "#FFFFFF",
+          colorInputBackground: "#F8F9FA",
+          colorInputText: "#202124",
         },
       }}
     >
       <html lang="en">
-        <body className={`${inter.className} bg-dark-2`}>
+        <body className={`${roboto.variable} ${roboto.className} bg-light-2 text-text-primary`}>
           <ErrorBoundary>
             <AuthHeader />
             <Toaster />
