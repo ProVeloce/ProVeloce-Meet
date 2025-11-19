@@ -11,6 +11,7 @@ import { useRouter } from 'next/navigation';
 import SEOHead from '@/components/SEOHead';
 import { generateBreadcrumbSchema } from '@/lib/seo-utils';
 import { ScrollAnimation, StaggerContainer } from '@/lib/animations';
+import MeetingDetailsModal from '@/components/MeetingDetailsModal';
 
 const HistoryPage = () => {
   const { user, isLoaded } = useUser();
@@ -19,6 +20,8 @@ const HistoryPage = () => {
   const router = useRouter();
   const [history, setHistory] = useState<MeetingHistory[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [selectedMeetingId, setSelectedMeetingId] = useState<string | null>(null);
+  const [selectedMeetingData, setSelectedMeetingData] = useState<MeetingHistory | null>(null);
 
   useEffect(() => {
     const fetchHistory = async () => {
@@ -169,7 +172,10 @@ const HistoryPage = () => {
                   </Button>
                 )}
                 <Button
-                  onClick={() => router.push(`/meeting/${item.meetingId}`)}
+                  onClick={() => {
+                    setSelectedMeetingId(item.meetingId);
+                    setSelectedMeetingData(item);
+                  }}
                   variant="outline"
                   className="w-full sm:w-auto"
                 >
@@ -181,6 +187,30 @@ const HistoryPage = () => {
             ))}
           </div>
         </StaggerContainer>
+      )}
+
+      {/* Meeting Details Modal */}
+      {selectedMeetingId && selectedMeetingData && (
+        <MeetingDetailsModal
+          isOpen={!!selectedMeetingId}
+          onClose={() => {
+            setSelectedMeetingId(null);
+            setSelectedMeetingData(null);
+          }}
+          meetingId={selectedMeetingId}
+          initialData={selectedMeetingData.meeting ? {
+            title: selectedMeetingData.meeting.title,
+            type: selectedMeetingData.meeting.type,
+            hostName: selectedMeetingData.meeting.hostName,
+            startTime: selectedMeetingData.meeting.startTime,
+            endTime: selectedMeetingData.meeting.endTime,
+            scheduledTime: selectedMeetingData.meeting.scheduledTime,
+            status: selectedMeetingData.meeting.status,
+            recordingUrl: selectedMeetingData.meeting.recordingUrl,
+            chatMessages: selectedMeetingData.chatMessages,
+            participation: selectedMeetingData.participation,
+          } : undefined}
+        />
       )}
       </section>
     </>
