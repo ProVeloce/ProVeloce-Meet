@@ -18,7 +18,7 @@ const Alert = ({ title, iconUrl }: PermissionCardProps) => {
             <div className="flex flex-col gap-3.5">
               {iconUrl && (
                 <div className="flex-center">
-                  <Image src={iconUrl} width={72} height={72} alt="icon" />
+                  <Image src={iconUrl} width={72} height={72} alt="icon" className="icon-dark brightness-0 invert" />
                 </div>
               )}
               <p className="text-center text-xl font-semibold">{title}</p>

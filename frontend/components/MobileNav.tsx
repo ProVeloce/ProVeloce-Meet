@@ -40,7 +40,7 @@ const MobileNav = () => {
                 width={32}
                 height={32}
                 alt="ProVeloce Meet logo"
-                className="w-8 h-8"
+                className="w-8 h-8 icon-dark"
               />
               <p className="text-xl font-bold text-text-primary">ProVeloce Meet</p>
             </Link>
@@ -73,7 +73,7 @@ const MobileNav = () => {
                           alt=""
                           width={20}
                           height={20}
-                          className={cn('transition-opacity', {
+                          className={cn('transition-opacity icon-dark', {
                             'opacity-100': isActive,
                             'opacity-70': !isActive,
                           })}

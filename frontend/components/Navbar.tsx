@@ -14,7 +14,7 @@ const Navbar = () => {
       role="navigation"
       aria-label="Main navigation"
     >
-      <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto">
+      <div className="flex items-center justify-between h-16 px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <Link 
           href="/" 
@@ -26,7 +26,7 @@ const Navbar = () => {
             width={32}
             height={32}
             alt="ProVeloce Meet logo"
-            className="w-8 h-8 sm:w-9 sm:h-9"
+            className="w-8 h-8 sm:w-9 sm:h-9 icon-dark"
             priority
           />
           <p className="text-xl sm:text-2xl font-bold text-text-primary max-sm:hidden">

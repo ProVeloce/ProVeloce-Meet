@@ -38,7 +38,7 @@ const MeetingModal = ({
         <div className="flex flex-col gap-6">
           {image && (
             <div className="flex justify-center">
-              <Image src={image} alt="" width={72} height={72} aria-hidden="true" />
+              <Image src={image} alt="" width={72} height={72} className="icon-dark" aria-hidden="true" />
             </div>
           )}
           <h2 className={cn("text-2xl sm:text-3xl font-bold leading-tight text-text-primary", className)}>
@@ -56,6 +56,7 @@ const MeetingModal = ({
                 alt=""
                 width={13}
                 height={13}
+                className="brightness-0 invert"
                 aria-hidden="true"
               />
             )}

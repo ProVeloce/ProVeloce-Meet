@@ -38,7 +38,7 @@ const Sidebar = () => {
                 alt=""
                 width={20}
                 height={20}
-                className={cn('transition-opacity', {
+                className={cn('transition-opacity icon-dark', {
                   'opacity-100': isActive,
                   'opacity-70': !isActive,
                 })}

@@ -34,7 +34,7 @@ const HomeCard = ({ className, img, title, description, handleClick }: HomeCardP
       aria-label={`${title}: ${description}`}
     >
       <div className="flex-center bg-light-2 size-12 rounded-lg mb-4">
-        <Image src={img} alt="" width={24} height={24} aria-hidden="true" />
+        <Image src={img} alt="" width={24} height={24} className="icon-dark" aria-hidden="true" />
       </div>
       
       <div className="flex flex-col gap-2">
