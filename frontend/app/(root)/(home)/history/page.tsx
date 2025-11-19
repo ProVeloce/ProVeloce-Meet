@@ -10,6 +10,7 @@ import { useToast } from '@/components/ui/use-toast';
 import { useRouter } from 'next/navigation';
 import SEOHead from '@/components/SEOHead';
 import { generateBreadcrumbSchema } from '@/lib/seo-utils';
+import { ScrollAnimation, StaggerContainer } from '@/lib/animations';
 
 const HistoryPage = () => {
   const { user, isLoaded } = useUser();
@@ -81,26 +82,31 @@ const HistoryPage = () => {
         noindex={true} // Private user history should not be indexed
         structuredData={breadcrumbSchema}
       />
-      <section className="flex size-full flex-col gap-10 text-white p-6" role="main" aria-label="Meeting history">
-        <h1 className="text-3xl font-bold">Meeting History</h1>
+      <section className="flex size-full flex-col gap-6 sm:gap-8 md:gap-10 text-black p-4 sm:p-6" role="main" aria-label="Meeting history">
+        <ScrollAnimation variant="fadeUp">
+          <h1 className="text-2xl sm:text-3xl font-bold text-black">Meeting History</h1>
+        </ScrollAnimation>
 
       {history.length === 0 ? (
-        <div className="flex items-center justify-center h-full">
-          <p className="text-gray-400 text-lg">No meeting history available</p>
-        </div>
+        <ScrollAnimation variant="fadeUp" delay={0.1}>
+          <div className="flex items-center justify-center h-full min-h-[400px]">
+            <p className="text-text-secondary text-base sm:text-lg">No meeting history available</p>
+          </div>
+        </ScrollAnimation>
       ) : (
-        <div className="space-y-4">
-          {history.map((item) => (
-            <div
-              key={item.meetingId}
-              className="bg-dark-1 rounded-lg p-6 border border-dark-3 hover:border-blue-1 transition-colors"
-            >
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <h3 className="text-xl font-semibold mb-2">
+        <StaggerContainer>
+          <div className="space-y-4 sm:space-y-6">
+            {history.map((item, index) => (
+              <ScrollAnimation key={item.meetingId} variant="fadeUp" delay={index * 0.05}>
+                <div
+                  className="bg-white rounded-lg p-4 sm:p-6 border border-light-4 hover:border-google-blue transition-all duration-300 shadow-sm hover:shadow-md"
+                >
+              <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4 mb-4">
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg sm:text-xl font-semibold mb-2 text-black">
                     {item.meeting?.title || 'Meeting'}
                   </h3>
-                  <div className="flex flex-wrap gap-4 text-sm text-gray-400">
+                  <div className="flex flex-wrap gap-3 sm:gap-4 text-xs sm:text-sm text-text-secondary">
                     {item.participation.joinedAt && (
                       <div className="flex items-center gap-2">
                         <Calendar className="h-4 w-4" />
@@ -128,22 +134,22 @@ const HistoryPage = () => {
                   </div>
                 </div>
                 {item.participation.isHost && (
-                  <span className="px-2 py-1 bg-blue-1 text-white text-xs rounded">Host</span>
+                  <span className="px-2 py-1 bg-google-blue text-white text-xs rounded whitespace-nowrap">Host</span>
                 )}
               </div>
 
               {item.chatMessages.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-dark-3">
-                  <h4 className="text-sm font-semibold mb-2 text-gray-400">Chat Messages</h4>
+                <div className="mt-4 pt-4 border-t border-light-4">
+                  <h4 className="text-sm font-semibold mb-2 text-text-primary">Chat Messages</h4>
                   <div className="space-y-2 max-h-32 overflow-y-auto">
                     {item.chatMessages.slice(-5).map((msg) => (
                       <div key={msg.id} className="text-sm">
-                        <span className="text-blue-400 font-semibold">{msg.userName}:</span>
-                        <span className="text-gray-300 ml-2">{msg.message}</span>
+                        <span className="text-google-blue font-semibold">{msg.userName}:</span>
+                        <span className="text-text-secondary ml-2">{msg.message}</span>
                       </div>
                     ))}
                     {item.chatMessages.length > 5 && (
-                      <p className="text-xs text-gray-500">
+                      <p className="text-xs text-text-tertiary">
                         +{item.chatMessages.length - 5} more messages
                       </p>
                     )}
@@ -151,12 +157,12 @@ const HistoryPage = () => {
                 </div>
               )}
 
-              <div className="mt-4 flex gap-2">
+              <div className="mt-4 flex flex-col sm:flex-row gap-2">
                 {item.meeting?.recordingUrl && item.participation.isHost && (
                   <Button
                     onClick={() => window.open(item.meeting!.recordingUrl, '_blank')}
                     variant="outline"
-                    className="bg-dark-3 border-dark-4"
+                    className="w-full sm:w-auto"
                   >
                     <Video className="h-4 w-4 mr-2" />
                     View Recording
@@ -165,14 +171,16 @@ const HistoryPage = () => {
                 <Button
                   onClick={() => router.push(`/meeting/${item.meetingId}`)}
                   variant="outline"
-                  className="bg-dark-3 border-dark-4"
+                  className="w-full sm:w-auto"
                 >
                   View Details
                 </Button>
               </div>
-            </div>
-          ))}
-        </div>
+                </div>
+              </ScrollAnimation>
+            ))}
+          </div>
+        </StaggerContainer>
       )}
       </section>
     </>

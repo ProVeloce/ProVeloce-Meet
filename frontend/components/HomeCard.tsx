@@ -16,7 +16,7 @@ const HomeCard = ({ className, img, title, description, handleClick }: HomeCardP
   return (
     <section
       className={cn(
-        'px-5 py-6 flex flex-col justify-between w-full xl:max-w-[270px] min-h-[260px] rounded-xl cursor-pointer',
+        'px-4 sm:px-5 py-5 sm:py-6 flex flex-col justify-between w-full xl:max-w-[270px] min-h-[220px] sm:min-h-[260px] rounded-xl cursor-pointer',
         'transition-all duration-200 hover:shadow-lg hover:-translate-y-1',
         'focus-within:outline-none focus-within:ring-2 focus-within:ring-google-blue focus-within:ring-offset-2',
         'bg-white border border-light-4 shadow-sm',

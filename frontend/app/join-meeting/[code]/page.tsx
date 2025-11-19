@@ -75,11 +75,11 @@ export default function JoinMeetingPage() {
         canonicalUrl={`${baseUrl}/join-meeting/${roomCode}`}
         noindex={true} // Private join links should not be indexed
       />
-      <div className="flex items-center justify-center h-screen" role="main" aria-label="Joining meeting">
+      <div className="flex items-center justify-center h-screen bg-light-2" role="main" aria-label="Joining meeting">
         {isLoading ? (
           <div className="flex flex-col items-center gap-4">
-            <Loader className="animate-spin h-8 w-8 text-white" aria-label="Loading" />
-            <p className="text-white">Joining meeting...</p>
+            <Loader className="animate-spin h-8 w-8 text-google-blue" aria-label="Loading" />
+            <p className="text-black">Joining meeting...</p>
           </div>
         ) : error ? (
           <Alert title={error} />

@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import SEOHead from '@/components/SEOHead';
 import { generateBreadcrumbSchema, generateVideoObjectSchema } from '@/lib/seo-utils';
+import { ScrollAnimation, StaggerContainer } from '@/lib/animations';
 
 const RecordingsPage = () => {
   const { user, isLoaded } = useUser();
@@ -79,23 +80,28 @@ const RecordingsPage = () => {
         noindex={true} // Private recordings should not be indexed
         structuredData={breadcrumbSchema}
       />
-      <section className="flex size-full flex-col gap-10 text-white p-6" role="main" aria-label="Meeting recordings">
-        <h1 className="text-3xl font-bold">Recordings</h1>
+      <section className="flex size-full flex-col gap-6 sm:gap-8 md:gap-10 text-black p-4 sm:p-6" role="main" aria-label="Meeting recordings">
+        <ScrollAnimation variant="fadeUp">
+          <h1 className="text-2xl sm:text-3xl font-bold text-black">Recordings</h1>
+        </ScrollAnimation>
 
       {recordings.length === 0 ? (
-        <div className="flex items-center justify-center h-full">
-          <p className="text-gray-400 text-lg">No recordings available</p>
-        </div>
+        <ScrollAnimation variant="fadeUp" delay={0.1}>
+          <div className="flex items-center justify-center h-full min-h-[400px]">
+            <p className="text-text-secondary text-base sm:text-lg">No recordings available</p>
+          </div>
+        </ScrollAnimation>
       ) : (
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-          {recordings.map((recording) => (
-            <div
-              key={recording.meetingId}
-              className="bg-dark-1 rounded-lg p-6 border border-dark-3 hover:border-blue-1 transition-colors"
-            >
-              <h3 className="text-xl font-semibold mb-2 truncate">{recording.title}</h3>
+        <StaggerContainer>
+          <div className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 lg:grid-cols-3">
+            {recordings.map((recording, index) => (
+              <ScrollAnimation key={recording.meetingId} variant="zoomIn" delay={index * 0.1}>
+                <div
+                  className="bg-white rounded-lg p-4 sm:p-6 border border-light-4 hover:border-google-blue transition-all duration-300 shadow-sm hover:shadow-md"
+                >
+              <h3 className="text-lg sm:text-xl font-semibold mb-2 truncate text-black">{recording.title}</h3>
               
-              <div className="flex flex-col gap-2 mb-4 text-sm text-gray-400">
+              <div className="flex flex-col gap-2 mb-4 text-xs sm:text-sm text-text-secondary">
                 {recording.startTime && (
                   <div className="flex items-center gap-2">
                     <Calendar className="h-4 w-4" />
@@ -122,15 +128,17 @@ const RecordingsPage = () => {
                     });
                   }
                 }}
-                className="w-full bg-blue-1 hover:bg-blue-2"
+                className="w-full"
                 disabled={!recording.recordingUrl}
               >
                 <Play className="h-4 w-4 mr-2" />
                 View Recording
               </Button>
-            </div>
-          ))}
-        </div>
+                </div>
+              </ScrollAnimation>
+            ))}
+          </div>
+        </StaggerContainer>
       )}
       </section>
     </>

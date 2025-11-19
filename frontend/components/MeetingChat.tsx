@@ -91,12 +91,12 @@ const MeetingChat = ({ meetingId, isOpen, onClose }: MeetingChatProps) => {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed right-4 bottom-20 w-80 h-[500px] bg-dark-2 border border-dark-3 rounded-lg shadow-lg flex flex-col z-50">
+    <div className="fixed right-0 top-0 sm:right-4 sm:bottom-20 w-full sm:w-80 h-full sm:h-[500px] bg-dark-2 border-0 sm:border border-dark-3 rounded-none sm:rounded-lg shadow-lg flex flex-col z-50">
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-dark-3">
+      <div className="flex items-center justify-between p-3 sm:p-4 border-b border-dark-3">
         <div className="flex items-center gap-2">
-          <MessageSquare className="h-5 w-5 text-white" />
-          <h3 className="text-white font-semibold">Chat</h3>
+          <MessageSquare className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
+          <h3 className="text-white font-semibold text-sm sm:text-base">Chat</h3>
         </div>
         <Button
           variant="ghost"
@@ -134,20 +134,20 @@ const MeetingChat = ({ meetingId, isOpen, onClose }: MeetingChatProps) => {
       </div>
 
       {/* Input */}
-      <div className="p-4 border-t border-dark-3">
+      <div className="p-3 sm:p-4 border-t border-dark-3">
         <div className="flex gap-2">
           <Input
             value={newMessage}
             onChange={(e) => setNewMessage(e.target.value)}
             onKeyPress={handleKeyPress}
             placeholder="Type a message..."
-            className="bg-dark-3 border-dark-4 text-white placeholder:text-gray-500"
+            className="bg-dark-3 border-dark-4 text-white placeholder:text-gray-500 text-sm sm:text-base"
             disabled={isSending}
           />
           <Button
             onClick={sendMessage}
             disabled={!newMessage.trim() || isSending}
-            className="bg-blue-1 hover:bg-blue-2"
+            className="bg-blue-1 hover:bg-blue-2 flex-shrink-0"
           >
             <Send className="h-4 w-4" />
           </Button>
