@@ -33,9 +33,10 @@ const nextConfig = {
   reactStrictMode: true,
   
   // Bundle optimization
-  experimental: {
-    optimizeCss: true,
-  },
+  // Note: optimizeCss requires 'critters' package - removed to fix build
+  // experimental: {
+  //   optimizeCss: true,
+  // },
   
   // Headers for SEO and security
   async headers() {
