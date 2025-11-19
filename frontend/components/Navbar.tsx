@@ -23,7 +23,7 @@ const Navbar = () => {
         >
           <div className="logo-gradient-wrapper relative">
             <Image
-              src="/icons/logo.svg"
+              src="/icons/logo.jpeg"
               width={32}
               height={32}
               alt="ProVeloce Meet logo"

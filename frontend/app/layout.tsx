@@ -76,8 +76,8 @@ export const metadata: Metadata = {
     },
   },
   icons: {
-    icon: "/icons/logo.svg",
-    apple: "/icons/logo.svg",
+    icon: "/icons/logo.jpeg",
+    apple: "/icons/logo.jpeg",
   },
   manifest: "/manifest.json",
 };
@@ -90,7 +90,7 @@ export default function RootLayout({
       appearance={{
         layout: {
           socialButtonsVariant: "iconButton",
-          logoImageUrl: "/icons/logo.svg",
+          logoImageUrl: "/icons/logo.jpeg",
         },
         variables: {
           colorText: "#202124",
