@@ -11,7 +11,8 @@ if (typeof window !== 'undefined') {
  */
 
 // Type for GSAP target (string selector, Element, or array of Elements)
-type GSAPTarget = string | Element | Element[] | null | undefined;
+// Note: GSAP's TweenTarget doesn't include null/undefined
+type GSAPTarget = string | Element | Element[];
 
 // Fade in animation
 export const fadeIn = (element: GSAPTarget, options?: gsap.TweenVars) => {
