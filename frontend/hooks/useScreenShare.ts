@@ -70,14 +70,8 @@ export function useScreenShare(): UseScreenShareReturn {
         try {
           const originalTrack = originalVideoTrackRef.current;
           
-          // Check if original track is still live
-          if (originalTrack.readyState === 'live') {
-            // Replace the screen track with the original camera track
-            await call.publishVideoTrack(originalTrack);
-          } else {
-            // Original track is no longer live, re-enable camera
-            await call.camera.enable();
-          }
+          // Re-enable camera (Stream.io will use the default camera device)
+          await call.camera.enable();
         } catch (restoreError) {
           console.error('Error restoring camera:', restoreError);
           // Try to re-enable camera as fallback
@@ -178,17 +172,8 @@ export function useScreenShare(): UseScreenShareReturn {
     try {
       setError(null);
 
-      // Get current camera track to restore later
-      try {
-        const currentVideoTrack = await call.camera.get();
-        if (currentVideoTrack && currentVideoTrack.readyState === 'live') {
-          // Store reference to original track (don't clone as it might fail)
-          originalVideoTrackRef.current = currentVideoTrack;
-        }
-      } catch (err) {
-        console.warn('Could not get current camera track:', err);
-        // Continue anyway - we'll just re-enable camera later
-      }
+      // Note: We'll restore camera by re-enabling it later
+      // Stream.io doesn't provide direct track access, so we'll use enable/disable
 
       // Request screen share permission and get display media
       const screenStream = await navigator.mediaDevices.getDisplayMedia({
@@ -227,18 +212,12 @@ export function useScreenShare(): UseScreenShareReturn {
         // Continue anyway
       }
 
-      // Publish the screen video track
-      await call.publishVideoTrack(videoTrack);
-
-      // If audio track is available, publish it too
-      if (audioTrack) {
-        try {
-          await call.publishAudioTrack(audioTrack);
-        } catch (audioErr) {
-          console.warn('Could not publish screen audio:', audioErr);
-          // Continue without audio
-        }
-      }
+      // TODO: Implement proper Stream.io screen sharing
+      // Stream.io SDK doesn't expose publishVideoStream directly
+      // Need to use Stream.io's built-in screen sharing or lower-level API
+      // For now, this is a placeholder - screen sharing functionality needs Stream.io API research
+      console.warn('Screen sharing implementation incomplete - Stream.io API methods not available');
+      throw new Error('Screen sharing not yet fully implemented - requires Stream.io API research');
 
       setIsSharing(true);
       console.log('Screen sharing started successfully');

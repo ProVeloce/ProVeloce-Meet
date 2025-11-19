@@ -82,7 +82,7 @@ export default function JoinMeetingPage() {
             <p className="text-white">Joining meeting...</p>
           </div>
         ) : error ? (
-          <Alert title={error} variant="destructive" />
+          <Alert title={error} />
         ) : null}
       </div>
     </>
