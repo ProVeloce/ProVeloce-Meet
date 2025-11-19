@@ -14,6 +14,7 @@ import ReactDatePicker from 'react-datepicker';
 import { useToast } from './ui/use-toast';
 import RoomCodeInput from './RoomCodeInput';
 import { cn } from '@/lib/utils';
+import { meetingApi } from '@/lib/meeting-api';
 // Room code utilities are available but not currently used in this component
 
 const initialValues = {
@@ -31,46 +32,152 @@ const MeetingTypeList = () => {
   const [callDetail, setCallDetail] = useState<Call>();
   const [roomCode, setRoomCode] = useState<string>('');
   const [isRoomCodeValid, setIsRoomCodeValid] = useState(false);
+  const [isCreatingInstant, setIsCreatingInstant] = useState(false);
   const client = useStreamVideoClient();
-  const { user } = useUser();
+  const { user, isLoaded } = useUser();
   const { getToken } = useAuth();
   const { toast } = useToast();
 
-  const createMeeting = async () => {
-    if (!client || !user) return;
+  // Get user display name (same logic as PersonalRoom)
+  const getDisplayName = () => {
+    if (!user) return 'User';
+    return user.firstName 
+      ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ''}`
+      : (user.username || user.emailAddresses[0]?.emailAddress?.split('@')[0] || 'User');
+  };
+
+  // Create instant meeting (same logic as PersonalRoom)
+  const createInstantMeeting = async () => {
+    if (!client || !user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to create a meeting",
+        variant: "destructive",
+      });
+      router.push('/sign-in');
+      return;
+    }
+
+    setIsCreatingInstant(true);
+
     try {
+      const token = await getToken();
+      if (!token) {
+        toast({
+          title: "Authentication required",
+          description: "Please sign in to create a meeting",
+          variant: "destructive",
+        });
+        router.push('/sign-in');
+        setIsCreatingInstant(false);
+        return;
+      }
+
+      const displayName = getDisplayName();
+
+      // Create meeting in database (same as PersonalRoom)
+      const newMeeting = await meetingApi.createMeeting({
+        title: `${displayName}'s Instant Meeting`,
+        type: 'instant',
+      }, token);
+
+      // Create Stream call using the streamCallId from database
+      const newCall = client.call("default", newMeeting.streamCallId);
+
+      await newCall.getOrCreate({
+        data: {
+          starts_at: new Date().toISOString(),
+        },
+      });
+
+      // Close modal and navigate to meeting room
+      setMeetingState(undefined);
+      router.push(`/meeting/${newMeeting.streamCallId}`);
+      
+      toast({
+        title: "Meeting Created",
+        description: "Your instant meeting has been created successfully",
+      });
+    } catch (error: any) {
+      console.error('Error creating instant meeting:', error);
+      toast({
+        title: "Failed to start meeting",
+        description: error.message || "An error occurred while creating the meeting",
+        variant: "destructive",
+      });
+    } finally {
+      setIsCreatingInstant(false);
+    }
+  };
+
+  // Create scheduled meeting
+  const createMeeting = async () => {
+    if (!client || !user) {
+      toast({
+        title: "Authentication required",
+        description: "Please sign in to create a meeting",
+        variant: "destructive",
+      });
+      router.push('/sign-in');
+      return;
+    }
+
+    try {
+      const token = await getToken();
+      if (!token) {
+        toast({
+          title: "Authentication required",
+          description: "Please sign in to create a meeting",
+          variant: "destructive",
+        });
+        router.push('/sign-in');
+        return;
+      }
+
       if (!values.dateTime) {
         toast({ title: 'Please select a date and time' });
         return;
       }
-      const id = crypto.randomUUID();
-      const call = client.call('default', id);
-      if (!call) throw new Error('Failed to create meeting');
-      const startsAt =
-        values.dateTime.toISOString() || new Date(Date.now()).toISOString();
-      const description = values.description || 'Instant Meeting';
-      await call.getOrCreate({
+
+      const displayName = getDisplayName();
+      const description = values.description || 'Scheduled Meeting';
+
+      // Create meeting in database
+      const newMeeting = await meetingApi.createMeeting({
+        title: description,
+        description,
+        type: 'scheduled',
+        scheduledTime: values.dateTime.toISOString(),
+      }, token);
+
+      // Create Stream call using the streamCallId from database
+      const newCall = client.call("default", newMeeting.streamCallId);
+
+      await newCall.getOrCreate({
         data: {
-          starts_at: startsAt,
+          starts_at: values.dateTime.toISOString(),
           custom: {
             description,
           },
         },
       });
-      setCallDetail(call);
-      if (!values.description) {
-        router.push(`/meeting/${call.id}`);
-      }
+
+      setCallDetail(newCall);
       toast({
         title: 'Meeting Created',
+        description: 'Your scheduled meeting has been created successfully',
       });
-    } catch (error) {
-      console.error(error);
-      toast({ title: 'Failed to create Meeting' });
+    } catch (error: any) {
+      console.error('Error creating scheduled meeting:', error);
+      toast({ 
+        title: 'Failed to create Meeting',
+        description: error.message || "An error occurred while creating the meeting",
+        variant: "destructive",
+      });
     }
   };
 
-  if (!client || !user) return <Loader />;
+  if (!isLoaded || !client || !user) return <Loader />;
 
   const meetingLink = `${process.env.NEXT_PUBLIC_BASE_URL}/meeting/${callDetail?.id}`;
 
@@ -241,11 +348,15 @@ const MeetingTypeList = () => {
 
       <MeetingModal
         isOpen={meetingState === 'isInstantMeeting'}
-        onClose={() => setMeetingState(undefined)}
+        onClose={() => {
+          setMeetingState(undefined);
+          setIsCreatingInstant(false);
+        }}
         title="Start an Instant Meeting"
         className="text-center"
-        buttonText="Start Meeting"
-        handleClick={createMeeting}
+        buttonText={isCreatingInstant ? "Creating..." : "Start Meeting"}
+        buttonDisabled={isCreatingInstant}
+        handleClick={createInstantMeeting}
       />
     </section>
   );
