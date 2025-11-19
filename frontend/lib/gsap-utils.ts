@@ -10,8 +10,11 @@ if (typeof window !== 'undefined') {
  * GSAP Animation Utilities for Google Meet/Zoom style animations
  */
 
+// Type for GSAP target (string selector, Element, or array of Elements)
+type GSAPTarget = string | Element | Element[] | null | undefined;
+
 // Fade in animation
-export const fadeIn = (element: gsap.TweenTarget, options?: gsap.TweenVars) => {
+export const fadeIn = (element: GSAPTarget, options?: gsap.TweenVars) => {
   return gsap.fromTo(
     element,
     { opacity: 0 },
@@ -25,7 +28,7 @@ export const fadeIn = (element: gsap.TweenTarget, options?: gsap.TweenVars) => {
 };
 
 // Fade in up animation
-export const fadeInUp = (element: gsap.TweenTarget, options?: gsap.TweenVars) => {
+export const fadeInUp = (element: GSAPTarget, options?: gsap.TweenVars) => {
   return gsap.fromTo(
     element,
     { opacity: 0, y: 30 },
@@ -40,7 +43,7 @@ export const fadeInUp = (element: gsap.TweenTarget, options?: gsap.TweenVars) =>
 };
 
 // Fade in down animation
-export const fadeInDown = (element: gsap.TweenTarget, options?: gsap.TweenVars) => {
+export const fadeInDown = (element: GSAPTarget, options?: gsap.TweenVars) => {
   return gsap.fromTo(
     element,
     { opacity: 0, y: -30 },
@@ -55,7 +58,7 @@ export const fadeInDown = (element: gsap.TweenTarget, options?: gsap.TweenVars) 
 };
 
 // Slide in from left
-export const slideInLeft = (element: gsap.TweenTarget, options?: gsap.TweenVars) => {
+export const slideInLeft = (element: GSAPTarget, options?: gsap.TweenVars) => {
   return gsap.fromTo(
     element,
     { opacity: 0, x: -50 },
@@ -70,7 +73,7 @@ export const slideInLeft = (element: gsap.TweenTarget, options?: gsap.TweenVars)
 };
 
 // Slide in from right
-export const slideInRight = (element: gsap.TweenTarget, options?: gsap.TweenVars) => {
+export const slideInRight = (element: GSAPTarget, options?: gsap.TweenVars) => {
   return gsap.fromTo(
     element,
     { opacity: 0, x: 50 },
@@ -85,7 +88,7 @@ export const slideInRight = (element: gsap.TweenTarget, options?: gsap.TweenVars
 };
 
 // Scale in animation
-export const scaleIn = (element: gsap.TweenTarget, options?: gsap.TweenVars) => {
+export const scaleIn = (element: GSAPTarget, options?: gsap.TweenVars) => {
   return gsap.fromTo(
     element,
     { opacity: 0, scale: 0.9 },
@@ -101,7 +104,7 @@ export const scaleIn = (element: gsap.TweenTarget, options?: gsap.TweenVars) => 
 
 // Stagger animation for multiple elements
 export const staggerFadeIn = (
-  elements: gsap.TweenTarget,
+  elements: GSAPTarget,
   staggerAmount: number = 0.1,
   options?: gsap.TweenVars
 ) => {
@@ -120,7 +123,7 @@ export const staggerFadeIn = (
 };
 
 // Button hover animation
-export const buttonHover = (element: gsap.TweenTarget) => {
+export const buttonHover = (element: GSAPTarget) => {
   return gsap.to(element, {
     scale: 1.05,
     duration: 0.2,
@@ -129,7 +132,7 @@ export const buttonHover = (element: gsap.TweenTarget) => {
 };
 
 // Button hover out animation
-export const buttonHoverOut = (element: gsap.TweenTarget) => {
+export const buttonHoverOut = (element: GSAPTarget) => {
   return gsap.to(element, {
     scale: 1,
     duration: 0.2,
@@ -138,7 +141,7 @@ export const buttonHoverOut = (element: gsap.TweenTarget) => {
 };
 
 // Pulse animation
-export const pulse = (element: gsap.TweenTarget, options?: gsap.TweenVars) => {
+export const pulse = (element: GSAPTarget, options?: gsap.TweenVars) => {
   return gsap.to(element, {
     scale: 1.1,
     duration: 0.5,
@@ -150,7 +153,7 @@ export const pulse = (element: gsap.TweenTarget, options?: gsap.TweenVars) => {
 };
 
 // Smooth reveal animation (Google Meet style)
-export const smoothReveal = (element: gsap.TweenTarget, options?: gsap.TweenVars) => {
+export const smoothReveal = (element: GSAPTarget, options?: gsap.TweenVars) => {
   return gsap.fromTo(
     element,
     { opacity: 0, y: 20, filter: 'blur(10px)' },
@@ -166,7 +169,7 @@ export const smoothReveal = (element: gsap.TweenTarget, options?: gsap.TweenVars
 };
 
 // Page transition animation
-export const pageTransition = (element: gsap.TweenTarget) => {
+export const pageTransition = (element: GSAPTarget) => {
   return gsap.fromTo(
     element,
     { opacity: 0 },
@@ -179,7 +182,7 @@ export const pageTransition = (element: gsap.TweenTarget) => {
 };
 
 // Card hover animation
-export const cardHover = (element: gsap.TweenTarget) => {
+export const cardHover = (element: GSAPTarget) => {
   return gsap.to(element, {
     y: -8,
     boxShadow: '0 12px 24px rgba(0, 0, 0, 0.15)',
@@ -189,7 +192,7 @@ export const cardHover = (element: gsap.TweenTarget) => {
 };
 
 // Card hover out animation
-export const cardHoverOut = (element: gsap.TweenTarget) => {
+export const cardHoverOut = (element: GSAPTarget) => {
   return gsap.to(element, {
     y: 0,
     boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
@@ -205,8 +208,8 @@ export const createTimeline = (options?: gsap.TimelineVars) => {
 
 // Scroll-triggered animation
 export const scrollReveal = (
-  element: gsap.TweenTarget,
-  options?: gsap.TweenVars & { trigger?: gsap.TweenTarget }
+  element: GSAPTarget,
+  options?: gsap.TweenVars & { trigger?: GSAPTarget }
 ) => {
   const { trigger, ...tweenOptions } = options || {};
   

@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 import { gsap } from 'gsap';
-import type { TweenTarget } from 'gsap';
 
 /**
  * Custom hook for GSAP animations
