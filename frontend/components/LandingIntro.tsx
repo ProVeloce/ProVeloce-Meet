@@ -1,13 +1,15 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Video, Shield, Users, ArrowRight } from 'lucide-react';
 import Image from 'next/image';
 import { fadeInUp, fadeInLeft, fadeInRight } from '@/lib/animations';
+import AuthModal from './AuthModal';
 
 const LandingIntro = () => {
-  const router = useRouter();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authMode, setAuthMode] = useState<'sign-in' | 'sign-up'>('sign-in');
 
   const features = [
     {
@@ -122,22 +124,38 @@ const LandingIntro = () => {
           transition={{ delay: 0.8 }}
           className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 mb-6 sm:mb-8"
         >
-          <button
-            onClick={() => router.push('/sign-in')}
-            className="w-full sm:w-auto min-w-[200px] bg-google-blue text-white rounded-full font-semibold text-base sm:text-lg h-12 sm:h-14 px-8 sm:px-10 cursor-pointer hover:bg-google-blue-dark transition-all duration-200 shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-google-blue focus:ring-offset-2 flex items-center justify-center gap-2 group"
+          <motion.button
+            onClick={() => {
+              setAuthMode('sign-in');
+              setIsAuthModalOpen(true);
+            }}
+            className="cta-button-primary w-full sm:w-auto min-w-[200px] bg-google-blue text-white rounded-full font-semibold text-base sm:text-lg h-12 sm:h-14 px-8 sm:px-10 cursor-pointer relative overflow-hidden shadow-lg focus:outline-none focus:ring-2 focus:ring-google-blue focus:ring-offset-2 flex items-center justify-center gap-2 group"
             aria-label="Sign in to ProVeloce Meet"
+            whileHover={{ scale: 1.05, boxShadow: '0 20px 40px rgba(26, 115, 232, 0.4)' }}
+            whileTap={{ scale: 0.98 }}
+            transition={{ duration: 0.2 }}
           >
-            Login
-            <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
-          </button>
-          <button
-            onClick={() => router.push('/sign-up')}
-            className="w-full sm:w-auto min-w-[200px] bg-white text-google-blue border-2 border-google-blue rounded-full font-semibold text-base sm:text-lg h-12 sm:h-14 px-8 sm:px-10 cursor-pointer hover:bg-google-blue hover:text-white transition-all duration-200 shadow-lg hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-google-blue focus:ring-offset-2 flex items-center justify-center gap-2 group"
+            <span className="relative z-10 flex items-center gap-2">
+              Login
+              <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+            </span>
+          </motion.button>
+          <motion.button
+            onClick={() => {
+              setAuthMode('sign-up');
+              setIsAuthModalOpen(true);
+            }}
+            className="cta-button-secondary w-full sm:w-auto min-w-[200px] bg-white text-google-blue border-2 border-google-blue rounded-full font-semibold text-base sm:text-lg h-12 sm:h-14 px-8 sm:px-10 cursor-pointer relative overflow-hidden shadow-lg focus:outline-none focus:ring-2 focus:ring-google-blue focus:ring-offset-2 flex items-center justify-center gap-2 group"
             aria-label="Sign up for ProVeloce Meet"
+            whileHover={{ scale: 1.05, boxShadow: '0 20px 40px rgba(26, 115, 232, 0.3)' }}
+            whileTap={{ scale: 0.98 }}
+            transition={{ duration: 0.2 }}
           >
-            Signup
-            <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
-          </button>
+            <span className="relative z-10 flex items-center gap-2 transition-colors group-hover:text-white">
+              Signup
+              <ArrowRight className="h-5 w-5 group-hover:translate-x-1 transition-transform" />
+            </span>
+          </motion.button>
         </motion.div>
 
         {/* Note */}
@@ -151,6 +169,13 @@ const LandingIntro = () => {
           Login/Signup required to access dashboard & meeting features
         </motion.p>
       </div>
+
+      {/* Auth Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        initialMode={authMode}
+      />
     </div>
   );
 };
