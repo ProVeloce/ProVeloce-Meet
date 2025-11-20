@@ -21,6 +21,7 @@ export interface EncryptedChatMessage {
   iv: string;
   timestamp: string;
   createdAt?: string;
+  isEncrypted?: boolean;
 }
 
 class ChatApi {

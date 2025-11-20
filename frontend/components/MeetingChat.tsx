@@ -55,6 +55,7 @@ const MeetingChat = ({ meetingId, isOpen, onClose }: MeetingChatProps) => {
                 userName: encryptedMsg.userName,
                 userImageUrl: encryptedMsg.userImageUrl,
                 timestamp: encryptedMsg.timestamp,
+                meetingId: encryptedMsg.meetingId || meetingId,
                 _id: encryptedMsg._id,
               };
             }
@@ -102,6 +103,7 @@ const MeetingChat = ({ meetingId, isOpen, onClose }: MeetingChatProps) => {
           ...sentMessage,
           encryptedMessage: sentMessage.encryptedMessage,
           iv: sentMessage.iv,
+          meetingId: sentMessage.meetingId || meetingId,
         });
 
         setMessages(prev => [...prev, decryptedMessage]);

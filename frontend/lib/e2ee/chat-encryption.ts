@@ -13,6 +13,7 @@ export interface EncryptedChatMessage {
   userName: string;
   userImageUrl?: string;
   timestamp: string;
+  meetingId: string;
   _id?: string;
 }
 
@@ -40,6 +41,7 @@ export async function encryptChatMessage(
     userName,
     userImageUrl,
     timestamp: new Date().toISOString(),
+    meetingId,
   };
 }
 
@@ -49,7 +51,7 @@ export async function encryptChatMessage(
 export async function decryptChatMessage(
   meetingId: string,
   encryptedMessage: EncryptedChatMessage
-): Promise<{ message: string; userId: string; userName: string; userImageUrl?: string; timestamp: string; _id?: string }> {
+): Promise<{ message: string; userId: string; userName: string; userImageUrl?: string; timestamp: string; meetingId: string; _id?: string }> {
   const meetingKey = e2eeKeyManager.getMeetingKey(meetingId);
   if (!meetingKey) {
     throw new Error('E2EE not initialized for this meeting');
@@ -67,6 +69,7 @@ export async function decryptChatMessage(
     userName: encryptedMessage.userName,
     userImageUrl: encryptedMessage.userImageUrl,
     timestamp: encryptedMessage.timestamp,
+    meetingId: encryptedMessage.meetingId,
     _id: encryptedMessage._id,
   };
 }
