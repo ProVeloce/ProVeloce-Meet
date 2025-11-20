@@ -22,29 +22,29 @@ const Navbar = () => {
           aria-label="ProVeloce Meet Home"
         >
           <div className="logo-gradient-wrapper relative">
-            <Image
+        <Image
               src="/icons/logo.jpeg"
-              width={32}
-              height={32}
-              alt="ProVeloce Meet logo"
+          width={32}
+          height={32}
+          alt="ProVeloce Meet logo"
               className="w-8 h-8 sm:w-9 sm:h-9 logo-gradient"
               priority
-            />
+        />
           </div>
           <p className="text-xl sm:text-2xl font-bold gradient-text max-sm:hidden">
-            ProVeloce Meet
-          </p>
-        </Link>
+          ProVeloce Meet
+        </p>
+      </Link>
 
         {/* Right side items */}
         <div className="flex items-center gap-4 sm:gap-6">
           {/* Clock - Desktop only */}
           <div className="hidden lg:flex items-center">
-            <Clock />
-          </div>
+          <Clock />
+        </div>
 
           {/* User Button - Only show when signed in */}
-          <SignedIn>
+        <SignedIn>
             <div className="flex items-center">
               <UserButton 
                 afterSignOutUrl="/sign-in"
@@ -64,10 +64,10 @@ const Navbar = () => {
                 }}
               />
             </div>
-          </SignedIn>
+        </SignedIn>
 
           {/* Mobile Navigation */}
-          <MobileNav />
+        <MobileNav />
         </div>
       </div>
     </nav>

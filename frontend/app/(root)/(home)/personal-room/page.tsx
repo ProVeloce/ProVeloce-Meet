@@ -97,24 +97,24 @@ const PersonalRoom = () => {
       </ScrollAnimation>
       <ScrollAnimation variant="fadeUp" delay={0.1}>
         <div className="flex w-full flex-col gap-6 sm:gap-8 xl:max-w-[900px]">
-          <Table title="Topic" description={`${displayName}'s Meeting Room`} />
-          <Table title="Room Code" description="Will be generated when you start the meeting" />
-          <Table title="Invite Link" description="Will be available after starting the meeting" />
-        </div>
+        <Table title="Topic" description={`${displayName}'s Meeting Room`} />
+        <Table title="Room Code" description="Will be generated when you start the meeting" />
+        <Table title="Invite Link" description="Will be available after starting the meeting" />
+      </div>
       </ScrollAnimation>
       <ScrollAnimation variant="fadeUp" delay={0.2}>
         <div className="flex flex-col sm:flex-row gap-4 sm:gap-5 items-start sm:items-center">
-          <Button 
-            onClick={startRoom}
-            disabled={isStarting}
+        <Button 
+          onClick={startRoom}
+          disabled={isStarting}
             className="w-full sm:w-auto"
-          >
-            {isStarting ? "Starting..." : "Start Meeting"}
-          </Button>
+        >
+          {isStarting ? "Starting..." : "Start Meeting"}
+        </Button>
           <p className="text-sm text-text-secondary self-center">
-            Click &quot;Start Meeting&quot; to create your personal room and get the room code and invite link.
-          </p>
-        </div>
+          Click &quot;Start Meeting&quot; to create your personal room and get the room code and invite link.
+        </p>
+      </div>
       </ScrollAnimation>
     </section>
   );

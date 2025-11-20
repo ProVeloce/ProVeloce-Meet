@@ -11,7 +11,7 @@ const PreviousPage = () => {
       </ScrollAnimation>
 
       <ScrollAnimation variant="fadeUp" delay={0.1}>
-        <CallList type="ended" />
+      <CallList type="ended" />
       </ScrollAnimation>
     </section>
   );

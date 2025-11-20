@@ -43,7 +43,7 @@ const MeetingModal = ({
           )}
           <DialogTitle asChild>
             <h2 className={cn("text-2xl sm:text-3xl font-bold leading-tight text-text-primary", className)}>
-              {title}
+            {title}
             </h2>
           </DialogTitle>
           <DialogDescription className="sr-only">

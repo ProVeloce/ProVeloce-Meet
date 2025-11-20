@@ -11,7 +11,7 @@ const UpcomingPage = () => {
       </ScrollAnimation>
 
       <ScrollAnimation variant="fadeUp" delay={0.1}>
-        <CallList type="upcoming" />
+      <CallList type="upcoming" />
       </ScrollAnimation>
     </section>
   );

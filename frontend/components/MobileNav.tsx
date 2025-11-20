@@ -36,13 +36,13 @@ const MobileNav = () => {
               onClick={() => document.dispatchEvent(new CustomEvent('sheet-close'))}
             >
               <div className="logo-gradient-wrapper relative">
-                <Image
+              <Image
                   src="/icons/logo.jpeg"
-                  width={32}
-                  height={32}
-                  alt="ProVeloce Meet logo"
+                width={32}
+                height={32}
+                alt="ProVeloce Meet logo"
                   className="w-8 h-8 logo-gradient"
-                />
+              />
               </div>
               <p className="text-xl font-bold gradient-text">ProVeloce Meet</p>
             </Link>

@@ -278,7 +278,7 @@ const MeetingRoom = () => {
             className="w-full h-full"
             {...meetingAnimations.videoTile}
           >
-            <CallLayout />
+          <CallLayout />
           </motion.div>
         </div>
         <AnimatePresence>
@@ -289,8 +289,8 @@ const MeetingRoom = () => {
               animate="animate"
               exit="exit"
               variants={meetingAnimations.panelSlide}
-            >
-              <CallParticipantsList onClose={() => setShowParticipants(false)} />
+        >
+          <CallParticipantsList onClose={() => setShowParticipants(false)} />
             </motion.div>
           )}
         </AnimatePresence>
@@ -303,58 +303,58 @@ const MeetingRoom = () => {
         variants={meetingAnimations.controls}
       >
         <div className="flex items-center gap-2 sm:gap-3 md:gap-5 min-w-0">
-          <CallControls 
-            onLeave={async () => {
-              // Track leave before navigating
-              if (hasTrackedJoin && meeting && user?.id) {
-                try {
-                  const token = await getToken();
-                  if (token) {
-                    await participantApi.leaveMeeting(meeting.streamCallId, token);
-                  }
-                } catch (error) {
-                  console.error('Error tracking leave:', error);
+        <CallControls 
+          onLeave={async () => {
+            // Track leave before navigating
+            if (hasTrackedJoin && meeting && user?.id) {
+              try {
+                const token = await getToken();
+                if (token) {
+                  await participantApi.leaveMeeting(meeting.streamCallId, token);
                 }
+              } catch (error) {
+                console.error('Error tracking leave:', error);
               }
-              router.push(`/`);
-            }} 
-          />
+            }
+            router.push(`/`);
+          }} 
+        />
 
-          <DropdownMenu>
-            <div className="flex items-center">
+        <DropdownMenu>
+          <div className="flex items-center">
               <DropdownMenuTrigger className="cursor-pointer rounded-xl sm:rounded-2xl bg-[#19232d] px-2 sm:px-4 py-1.5 sm:py-2 hover:bg-[#4c535b] transition-colors">
                 <LayoutList size={16} className="sm:w-5 sm:h-5 text-white" />
-              </DropdownMenuTrigger>
-            </div>
-            <DropdownMenuContent className="border-dark-1 bg-dark-1 text-white">
-              {['Grid', 'Speaker-Left', 'Speaker-Right'].map((item, index) => (
-                <div key={index}>
-                  <DropdownMenuItem
-                    onClick={() =>
-                      setLayout(item.toLowerCase() as CallLayoutType)
-                    }
-                  >
-                    {item}
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator className="border-dark-1" />
-                </div>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <CallStatsButton />
-          <ScreenShareButton />
+            </DropdownMenuTrigger>
+          </div>
+          <DropdownMenuContent className="border-dark-1 bg-dark-1 text-white">
+            {['Grid', 'Speaker-Left', 'Speaker-Right'].map((item, index) => (
+              <div key={index}>
+                <DropdownMenuItem
+                  onClick={() =>
+                    setLayout(item.toLowerCase() as CallLayoutType)
+                  }
+                >
+                  {item}
+                </DropdownMenuItem>
+                <DropdownMenuSeparator className="border-dark-1" />
+              </div>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+        <CallStatsButton />
+        <ScreenShareButton />
           <button onClick={() => setShowParticipants((prev) => !prev)} className="flex-shrink-0">
             <div className="cursor-pointer rounded-xl sm:rounded-2xl bg-[#19232d] px-2 sm:px-4 py-1.5 sm:py-2 hover:bg-[#4c535b] transition-colors">
               <Users size={16} className="sm:w-5 sm:h-5 text-white" />
-            </div>
-          </button>
+          </div>
+        </button>
           <button onClick={() => setShowChat((prev) => !prev)} className="flex-shrink-0">
             <div className="cursor-pointer rounded-xl sm:rounded-2xl bg-[#19232d] px-2 sm:px-4 py-1.5 sm:py-2 hover:bg-[#4c535b] transition-colors">
               <MessageSquare size={16} className="sm:w-5 sm:h-5 text-white" />
-            </div>
-          </button>
-          {!isPersonalRoom && <EndCallButton />}
-        </div>
+          </div>
+        </button>
+        {!isPersonalRoom && <EndCallButton />}
+      </div>
       </motion.div>
 
       {/* Chat Panel */}
@@ -367,13 +367,13 @@ const MeetingRoom = () => {
             variants={meetingAnimations.panelSlide}
             className="fixed right-0 top-0 h-full z-40"
           >
-            <MeetingChat
-              meetingId={meeting.streamCallId}
-              isOpen={showChat}
-              onClose={() => setShowChat(false)}
-            />
+        <MeetingChat
+          meetingId={meeting.streamCallId}
+          isOpen={showChat}
+          onClose={() => setShowChat(false)}
+        />
           </motion.div>
-        )}
+      )}
       </AnimatePresence>
     </section>
   );

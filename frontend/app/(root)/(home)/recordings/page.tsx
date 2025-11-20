@@ -89,7 +89,7 @@ const RecordingsPage = () => {
         <ScrollAnimation variant="fadeUp" delay={0.1}>
           <div className="flex items-center justify-center h-full min-h-[400px]">
             <p className="text-text-secondary text-base sm:text-lg">No recordings available</p>
-          </div>
+        </div>
         </ScrollAnimation>
       ) : (
         <StaggerContainer>
@@ -98,7 +98,7 @@ const RecordingsPage = () => {
               <ScrollAnimation key={recording.meetingId} variant="zoomIn" delay={index * 0.1}>
                 <div
                   className="bg-white rounded-lg p-4 sm:p-6 border border-light-4 hover:border-google-blue transition-all duration-300 shadow-sm hover:shadow-md"
-                >
+            >
               <h3 className="text-lg sm:text-xl font-semibold mb-2 truncate text-black">{recording.title}</h3>
               
               <div className="flex flex-col gap-2 mb-4 text-xs sm:text-sm text-text-secondary">
@@ -134,10 +134,10 @@ const RecordingsPage = () => {
                 <Play className="h-4 w-4 mr-2" />
                 View Recording
               </Button>
-                </div>
+            </div>
               </ScrollAnimation>
-            ))}
-          </div>
+          ))}
+        </div>
         </StaggerContainer>
       )}
       </section>
