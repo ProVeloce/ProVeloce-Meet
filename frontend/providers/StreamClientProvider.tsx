@@ -21,7 +21,14 @@ const StreamVideoProvider = ({ children }: { children: ReactNode }) => {
   const { getToken } = useAuth();
 
   useEffect(() => {
-    if (!isLoaded || !user) return;
+    // Only initialize if user is loaded and authenticated
+    if (!isLoaded) return; // Still loading auth state
+    if (!user) {
+      // User is not authenticated - don't initialize Stream, just render children
+      setVideoClient(undefined);
+      return;
+    }
+    
     if (!API_KEY) {
       setError('Stream API key is missing. Please configure NEXT_PUBLIC_STREAM_API_KEY.');
       return;
@@ -109,8 +116,13 @@ const StreamVideoProvider = ({ children }: { children: ReactNode }) => {
     );
   }
 
-  if (!videoClient) return <Loader />;
+  // If auth is still loading or user is not authenticated, render children immediately
+  // Don't block rendering with a loader - let the auth pages show immediately
+  if (!isLoaded || !user || !videoClient) {
+    return <>{children}</>;
+  }
 
+  // User is authenticated and videoClient is ready
   return <StreamVideo client={videoClient}>{children}</StreamVideo>;
 };
 
