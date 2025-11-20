@@ -166,9 +166,10 @@ export async function deriveKeyFromSecret(
   info: Uint8Array
 ): Promise<CryptoKey> {
   // Import shared secret as HMAC key
+  const sharedSecretBuffer = await exportKey(sharedSecret);
   const hmacKey = await crypto.subtle.importKey(
     'raw',
-    await exportKey(sharedSecret),
+    sharedSecretBuffer,
     {
       name: 'HMAC',
       hash: 'SHA-256',
@@ -177,8 +178,9 @@ export async function deriveKeyFromSecret(
     ['sign']
   );
 
-  // HKDF extract
-  const prk = await crypto.subtle.sign('HMAC', hmacKey, salt);
+  // HKDF extract - create a new ArrayBuffer from Uint8Array to ensure proper type
+  const saltArrayBuffer = new Uint8Array(salt).buffer;
+  const prk = await crypto.subtle.sign('HMAC', hmacKey, saltArrayBuffer);
 
   // HKDF expand (simplified - for production use a proper HKDF implementation)
   const hmacKey2 = await crypto.subtle.importKey(
@@ -192,9 +194,12 @@ export async function deriveKeyFromSecret(
     ['sign']
   );
 
-  const okm = await crypto.subtle.sign('HMAC', hmacKey2, info);
+  // Create a new ArrayBuffer from info Uint8Array
+  const infoArrayBuffer = new Uint8Array(info).buffer;
+  const okm = await crypto.subtle.sign('HMAC', hmacKey2, infoArrayBuffer);
 
-  // Import as AES-GCM key
-  return await importKey(okm.slice(0, 32)); // Use first 32 bytes for 256-bit key
+  // Import as AES-GCM key - ensure we have a proper ArrayBuffer
+  const keyBuffer = okm.slice(0, 32); // Use first 32 bytes for 256-bit key
+  return await importKey(keyBuffer);
 }
 
