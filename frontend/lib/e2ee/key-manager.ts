@@ -272,7 +272,9 @@ export class E2EEKeyManager {
     // Wrap new key for all participants
     const wrappedKeys = new Map<string, { wrappedKey: string; iv: string }>();
 
-    for (const [participantId, participantInfo] of meetingData.participants.entries()) {
+    // Convert to array to avoid iteration issues in older TypeScript targets
+    const participantsArray = Array.from(meetingData.participants.entries());
+    for (const [participantId, participantInfo] of participantsArray) {
       if (participantId === hostUserId) {
         // Host doesn't need wrapped key
         continue;
