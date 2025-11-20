@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 
 // Public routes that don't require authentication
 const isPublicRoute = createRouteMatcher([
+  '/',
   '/sign-in(.*)',
   '/sign-up(.*)',
   '/api/webhooks(.*)',
@@ -18,18 +19,24 @@ export default clerkMiddleware(async (auth, req) => {
     return NextResponse.next();
   }
 
-  // Only check auth for non-public routes
-  // Don't manually redirect - let Clerk handle it through its internal mechanisms
-  if (!isPublicRoute(req)) {
-    const { userId } = await auth();
-    // If not authenticated, Clerk's internal redirect will handle it
-    // We just need to check, not redirect ourselves
-    if (!userId) {
-      // Return nothing - Clerk will handle the redirect internally
-      // This avoids the header immutability issue
-      return;
+  // Allow public routes to pass through
+  if (isPublicRoute(req)) {
+    return NextResponse.next();
+  }
+
+  // For protected routes, check authentication
+  const { userId } = await auth();
+  if (!userId) {
+    // For protected routes without auth, redirect to sign-in
+    // But don't redirect if already on sign-in/sign-up
+    const url = req.nextUrl.clone();
+    if (!url.pathname.startsWith('/sign-in') && !url.pathname.startsWith('/sign-up')) {
+      url.pathname = '/sign-in';
+      return NextResponse.redirect(url);
     }
   }
+
+  return NextResponse.next();
 });
 
 export const config = {
