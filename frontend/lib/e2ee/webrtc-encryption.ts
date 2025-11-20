@@ -25,6 +25,8 @@ export async function createEncryptionTransform(
       try {
         // Encrypt the chunk using AES-GCM
         // Note: For production, use proper frame-based encryption
+        // Convert chunk to ArrayBuffer to ensure proper type
+        const chunkBuffer = new Uint8Array(chunk).buffer;
         const encrypted = await crypto.subtle.encrypt(
           {
             name: 'AES-GCM',
@@ -32,7 +34,7 @@ export async function createEncryptionTransform(
             tagLength: 128,
           },
           meetingKey,
-          chunk
+          chunkBuffer
         );
 
         // Prepend IV (first 12 bytes) to encrypted data
@@ -73,15 +75,19 @@ export async function createDecryptionTransform(
         const iv = chunk.slice(0, 12);
         const encrypted = chunk.slice(12);
 
+        // Convert encrypted data to ArrayBuffer to ensure proper type
+        const encryptedBuffer = new Uint8Array(encrypted).buffer;
+        const ivBuffer = new Uint8Array(iv).buffer;
+
         // Decrypt the chunk
         const decrypted = await crypto.subtle.decrypt(
           {
             name: 'AES-GCM',
-            iv: iv,
+            iv: ivBuffer,
             tagLength: 128,
           },
           meetingKey,
-          encrypted
+          encryptedBuffer
         );
 
         controller.enqueue(new Uint8Array(decrypted));
