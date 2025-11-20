@@ -44,9 +44,6 @@ const MeetingModal = ({
                 width={72} 
                 height={72} 
                 className="w-[72px] h-[72px]" 
-                style={{ 
-                  filter: 'brightness(0) saturate(100%) invert(65%) sepia(95%) saturate(400%) hue-rotate(100deg) brightness(95%) contrast(85%)'
-                }}
                 aria-hidden="true" 
               />
             </div>
