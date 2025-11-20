@@ -11,7 +11,7 @@ import {
   useCall,
 } from '@stream-io/video-react-sdk';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
-import { Users, LayoutList, Copy, Link as LinkIcon, MessageSquare } from 'lucide-react';
+import { Users, LayoutList, Copy, Link as LinkIcon, MessageSquare, Clock } from 'lucide-react';
 import { useUser, useAuth } from '@clerk/nextjs';
 import { motion, AnimatePresence } from 'framer-motion';
 import { meetingAnimations } from '@/lib/animations';
@@ -55,6 +55,7 @@ const MeetingRoom = () => {
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [showShareMenu, setShowShareMenu] = useState(false);
   const [hasTrackedJoin, setHasTrackedJoin] = useState(false);
+  const [meetingDuration, setMeetingDuration] = useState<number>(0); // Duration in seconds
   const { useCallCallingState } = useCallStateHooks();
 
   // for more detail about types of CallingState see: https://getstream.io/video/docs/react/ui-cookbook/ringing-call/#incoming-call-panel
@@ -115,6 +116,38 @@ const MeetingRoom = () => {
     };
   }, [hasTrackedJoin, call?.id, user?.id, params.id, getToken]);
 
+  // Countdown timer - update every second when meeting is active
+  useEffect(() => {
+    if (!meeting?.startTime || meeting?.endTime) {
+      setMeetingDuration(0);
+      return;
+    }
+
+    const startTime = new Date(meeting.startTime).getTime();
+    const updateDuration = () => {
+      const now = Date.now();
+      const durationSeconds = Math.floor((now - startTime) / 1000);
+      setMeetingDuration(durationSeconds);
+    };
+
+    updateDuration(); // Initial update
+    const interval = setInterval(updateDuration, 1000);
+
+    return () => clearInterval(interval);
+  }, [meeting?.startTime, meeting?.endTime]);
+
+  // Format duration as HH:MM:SS
+  const formatDuration = (seconds: number): string => {
+    const hours = Math.floor(seconds / 3600);
+    const minutes = Math.floor((seconds % 3600) / 60);
+    const secs = seconds % 60;
+    
+    if (hours > 0) {
+      return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+    return `${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  };
+
   const isHost = meeting?.hostId === user?.id;
   const getMeetingLink = () => {
     if (!meeting) return '';
@@ -149,6 +182,23 @@ const MeetingRoom = () => {
 
   return (
     <section className="relative h-screen w-full overflow-hidden pt-2 sm:pt-4 text-white">
+      {/* Meeting Duration Timer */}
+      {meeting?.startTime && !meeting?.endTime && meetingDuration > 0 && (
+        <motion.div 
+          className="absolute top-2 sm:top-4 left-2 sm:left-4 z-50 bg-dark-2/80 backdrop-blur-sm border border-dark-3 rounded-lg px-3 sm:px-4 py-1.5 sm:py-2"
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.2 }}
+        >
+          <div className="flex items-center gap-2">
+            <Clock className="h-3 w-3 sm:h-4 sm:w-4 text-white" />
+            <span className="text-white text-xs sm:text-sm font-mono font-semibold">
+              {formatDuration(meetingDuration)}
+            </span>
+          </div>
+        </motion.div>
+      )}
+
       {/* Share menu for host */}
       {isHost && meeting && (
         <motion.div 

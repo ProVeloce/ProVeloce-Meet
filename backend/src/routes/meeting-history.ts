@@ -60,6 +60,7 @@ router.get('/user/:userId', verifyAuth, async (req: Request, res: Response) => {
             endTime: meeting.endTime,
             scheduledTime: meeting.scheduledTime,
             status: meeting.status,
+            duration: meeting.duration,
             recordingUrl: meeting.recordingUrl,
           } : null,
           participation: {
@@ -136,6 +137,7 @@ router.get('/meeting/:meetingId', verifyAuth, async (req: Request, res: Response
         endTime: meeting.endTime,
         scheduledTime: meeting.scheduledTime,
         status: meeting.status,
+        duration: meeting.duration,
         recordingUrl: meeting.recordingUrl,
       },
       participants: participants.map(p => ({

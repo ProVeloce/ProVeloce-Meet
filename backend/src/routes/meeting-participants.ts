@@ -92,6 +92,21 @@ router.post('/:meetingId/join', verifyAuth, async (req: Request, res: Response) 
     });
     await historyEntry.save({ session });
 
+    // Check if this is the first participant joining - set startTime and update status
+    const activeParticipants = await MeetingParticipant.countDocuments({
+      meetingId,
+      leftAt: { $exists: false },
+    }).session(session);
+
+    if (activeParticipants === 1 && !meeting.startTime) {
+      // First participant joining - start the meeting
+      meeting.startTime = new Date();
+      if (meeting.status === 'scheduled') {
+        meeting.status = 'ongoing';
+      }
+      await meeting.save({ session });
+    }
+
     await session.commitTransaction();
     res.status(201).json(participant);
   } catch (error: any) {
@@ -161,10 +176,34 @@ router.post('/:meetingId/leave', verifyAuth, async (req: Request, res: Response)
       action: 'left',
       timestamp: new Date(),
       metadata: {
+        userName: participant.userName,
         duration: participant.duration,
       },
     });
     await historyEntry.save({ session });
+
+    // Check if all participants have left
+    const activeParticipants = await MeetingParticipant.countDocuments({
+      meetingId,
+      leftAt: { $exists: false },
+    }).session(session);
+
+    // Find meeting to update status
+    const meeting = await Meeting.findOne({ streamCallId: meetingId }).session(session);
+    
+    if (activeParticipants === 0 && meeting && meeting.status === 'ongoing') {
+      // All participants have left - end the meeting
+      meeting.endTime = new Date();
+      meeting.status = 'ended';
+      
+      // Calculate total meeting duration
+      if (meeting.startTime) {
+        const durationMs = meeting.endTime.getTime() - meeting.startTime.getTime();
+        meeting.duration = Math.floor(durationMs / 1000); // Duration in seconds
+      }
+      
+      await meeting.save({ session });
+    }
 
     await session.commitTransaction();
     res.json(participant);

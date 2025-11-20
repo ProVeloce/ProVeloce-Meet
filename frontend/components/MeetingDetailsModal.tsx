@@ -189,9 +189,25 @@ const MeetingDetailsModal = ({
                   <Clock className="h-5 w-5 text-google-blue mt-0.5 flex-shrink-0" />
                   <div>
                     <p className="text-text-secondary font-medium">Status</p>
-                    <p className="text-black capitalize">{meeting.status}</p>
+                    <p className="text-black capitalize">
+                      {meeting.status === 'ended' ? 'Ended' : meeting.status === 'ongoing' ? 'Ongoing' : meeting.status === 'cancelled' ? 'Cancelled' : 'Scheduled'}
+                    </p>
                   </div>
                 </div>
+                {meeting.status === 'ended' && meeting.endTime && (
+                  <div className="flex items-start gap-3">
+                    <Clock className="h-5 w-5 text-google-blue mt-0.5 flex-shrink-0" />
+                    <div>
+                      <p className="text-text-secondary font-medium">Ended At</p>
+                      <p className="text-black">{formatDate(meeting.endTime)}</p>
+                      {detailedData?.meeting?.duration && (
+                        <p className="text-text-secondary text-xs mt-1">
+                          Duration: {formatDuration(detailedData.meeting.duration)}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -290,27 +306,38 @@ const MeetingDetailsModal = ({
                 <div className="space-y-2 max-h-48 overflow-y-auto">
                   {historyEntries
                     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-                    .map((entry, index) => (
-                      <div
-                        key={index}
-                        className="flex items-center gap-3 p-2 text-sm bg-light-2 rounded border border-light-4"
-                      >
-                        <div className="h-2 w-2 rounded-full bg-google-blue flex-shrink-0" />
-                        <div className="flex-1">
-                          <p className="text-black">
-                            <span className="font-semibold capitalize">{entry.action.replace('_', ' ')}</span>
-                            {entry.metadata && Object.keys(entry.metadata).length > 0 && (
-                              <span className="text-text-secondary ml-2">
-                                {JSON.stringify(entry.metadata)}
-                              </span>
-                            )}
-                          </p>
-                          <p className="text-text-tertiary text-xs mt-0.5">
-                            {formatDate(entry.timestamp)}
-                          </p>
+                    .map((entry, index) => {
+                      // Format the activity message
+                      const getUserName = () => {
+                        if (entry.metadata?.userName) {
+                          return entry.metadata.userName;
+                        }
+                        // Try to find user name from participants if available
+                        const participant = participants.find(p => p.userId === entry.userId);
+                        return participant?.userName || 'User';
+                      };
+
+                      const userName = getUserName();
+                      const actionText = entry.action.charAt(0).toUpperCase() + entry.action.slice(1).replace('_', ' ');
+                      const displayText = `${userName} ${entry.action === 'joined' ? 'joined' : entry.action === 'left' ? 'left' : actionText.toLowerCase()}`;
+
+                      return (
+                        <div
+                          key={index}
+                          className="flex items-start gap-3 p-2 text-sm bg-light-2 rounded border border-light-4"
+                        >
+                          <div className="h-2 w-2 rounded-full bg-google-blue flex-shrink-0 mt-1.5" />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-black font-medium">
+                              {displayText}
+                            </p>
+                            <p className="text-text-tertiary text-xs mt-0.5">
+                              {formatDate(entry.timestamp)}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                 </div>
               </div>
             )}

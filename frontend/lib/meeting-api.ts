@@ -14,6 +14,7 @@ export interface Meeting {
   endTime?: string;
   scheduledTime?: string;
   participants: string[];
+  duration?: number; // Meeting duration in seconds
   recordingUrl?: string;
   recordingId?: string;
   status: 'scheduled' | 'ongoing' | 'ended' | 'cancelled';

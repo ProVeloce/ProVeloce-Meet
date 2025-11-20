@@ -49,6 +49,7 @@ export interface DetailedMeetingHistory {
     endTime?: string;
     scheduledTime?: string;
     status: string;
+    duration?: number; // Meeting duration in seconds
     recordingUrl?: string;
   };
   participants: Array<{

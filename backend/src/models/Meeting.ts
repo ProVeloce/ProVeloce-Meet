@@ -13,6 +13,7 @@ export interface IMeeting extends Document {
   endTime?: Date;
   scheduledTime?: Date;
   participants: string[]; // Array of Clerk user IDs
+  duration?: number; // Meeting duration in seconds
   recordingUrl?: string;
   recordingId?: string;
   status: 'scheduled' | 'ongoing' | 'ended' | 'cancelled';
@@ -68,6 +69,7 @@ const MeetingSchema = new Schema<IMeeting>(
     participants: [{
       type: String,
     }],
+    duration: Number, // Meeting duration in seconds
     recordingUrl: String,
     recordingId: String,
     status: {
