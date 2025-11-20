@@ -72,7 +72,7 @@ const EndCallButton = () => {
         }
       }
 
-      router.push('/');
+      router.push('/home');
     } catch (error) {
       console.error('Error ending call:', error);
       setIsEnding(false);
