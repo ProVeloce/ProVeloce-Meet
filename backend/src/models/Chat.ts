@@ -5,7 +5,10 @@ export interface IChat extends Document {
   userId: string; // Clerk user ID
   userName: string;
   userImageUrl?: string;
-  message: string;
+  message: string; // Plaintext (for backward compatibility) or placeholder for encrypted
+  encryptedMessage?: string; // E2EE encrypted message (base64)
+  iv?: string; // Initialization vector for E2EE (base64)
+  isEncrypted?: boolean; // Flag to indicate if message is encrypted
   timestamp: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -30,7 +33,16 @@ const ChatSchema = new Schema<IChat>(
     userImageUrl: String,
     message: {
       type: String,
-      required: true,
+      required: function(this: IChat) {
+        // Either message or encryptedMessage must be present
+        return !!(this.message || this.encryptedMessage);
+      },
+    },
+    encryptedMessage: String, // E2EE encrypted message
+    iv: String, // Initialization vector for E2EE
+    isEncrypted: {
+      type: Boolean,
+      default: false,
     },
     timestamp: {
       type: Date,

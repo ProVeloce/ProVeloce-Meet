@@ -33,10 +33,12 @@ import Loader from './Loader';
 import EndCallButton from './EndCallButton';
 import MeetingChat from './MeetingChat';
 import ScreenShareButton from './ScreenShareButton';
+import E2EEStatusIndicator from './E2EEStatusIndicator';
 import { cn } from '@/lib/utils';
 import { meetingApi, Meeting } from '@/lib/meeting-api';
 import { participantApi } from '@/lib/participant-api';
 import { useToast } from './ui/use-toast';
+import { useE2EE } from '@/hooks/useE2EE';
 
 type CallLayoutType = 'grid' | 'speaker-left' | 'speaker-right';
 
@@ -60,6 +62,22 @@ const MeetingRoom = () => {
 
   // for more detail about types of CallingState see: https://getstream.io/video/docs/react/ui-cookbook/ringing-call/#incoming-call-panel
   const callingState = useCallCallingState();
+
+  // E2EE status
+  const meetingId = Array.isArray(params.id) ? params.id[0] : params.id;
+  const e2eeStatus = useE2EE(meetingId, meeting?.hostId === user?.id);
+
+  // Block joining if E2EE fails
+  useEffect(() => {
+    if (e2eeStatus.error && callingState === CallingState.JOINED) {
+      toast({
+        title: 'E2EE Initialization Failed',
+        description: 'Cannot join meeting without encryption. Please try again.',
+        variant: 'destructive',
+      });
+      router.push('/home');
+    }
+  }, [e2eeStatus.error, callingState, toast, router]);
 
   // Fetch meeting data and track join
   useEffect(() => {
@@ -198,6 +216,20 @@ const MeetingRoom = () => {
           </div>
         </motion.div>
       )}
+
+      {/* E2EE Status Indicator */}
+      <motion.div
+        className="absolute top-2 sm:top-4 right-2 sm:right-20 z-50"
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.3, delay: 0.3 }}
+      >
+        <E2EEStatusIndicator
+          isActive={e2eeStatus.isActive}
+          isInitializing={e2eeStatus.isInitializing}
+          error={e2eeStatus.error || undefined}
+        />
+      </motion.div>
 
       {/* Share menu for host */}
       {isHost && meeting && (

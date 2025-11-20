@@ -1,9 +1,11 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useAuth } from '@clerk/nextjs';
+import { useAuth, useUser } from '@clerk/nextjs';
 import { MessageSquare, Send, X } from 'lucide-react';
-import { chatApi, ChatMessage } from '@/lib/chat-api';
+import { chatApi, ChatMessage, EncryptedChatMessage } from '@/lib/chat-api';
+import { encryptChatMessage, decryptChatMessage } from '@/lib/e2ee/chat-encryption';
+import { e2eeKeyManager } from '@/lib/e2ee/key-manager';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { cn } from '@/lib/utils';
@@ -16,12 +18,20 @@ interface MeetingChatProps {
 
 const MeetingChat = ({ meetingId, isOpen, onClose }: MeetingChatProps) => {
   const { getToken } = useAuth();
+  const { user } = useUser();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [e2eeEnabled, setE2eeEnabled] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Check if E2EE is enabled for this meeting
+  useEffect(() => {
+    const isE2EEActive = e2eeKeyManager.isE2EEActive(meetingId);
+    setE2eeEnabled(isE2EEActive);
+  }, [meetingId]);
 
   // Fetch messages
   const fetchMessages = async () => {
@@ -30,7 +40,30 @@ const MeetingChat = ({ meetingId, isOpen, onClose }: MeetingChatProps) => {
       if (!token) return;
 
       const fetchedMessages = await chatApi.getMessages(meetingId, token);
-      setMessages(fetchedMessages);
+      
+      if (e2eeEnabled) {
+        // Decrypt messages if E2EE is enabled
+        const decryptedMessages = await Promise.all(
+          (fetchedMessages as EncryptedChatMessage[]).map(async (encryptedMsg) => {
+            try {
+              return await decryptChatMessage(meetingId, encryptedMsg);
+            } catch (error) {
+              console.error('Failed to decrypt message:', error);
+              return {
+                message: '[Encrypted message - decryption failed]',
+                userId: encryptedMsg.userId,
+                userName: encryptedMsg.userName,
+                userImageUrl: encryptedMsg.userImageUrl,
+                timestamp: encryptedMsg.timestamp,
+                _id: encryptedMsg._id,
+              };
+            }
+          })
+        );
+        setMessages(decryptedMessages);
+      } else {
+        setMessages(fetchedMessages as ChatMessage[]);
+      }
     } catch (error) {
       console.error('Error fetching messages:', error);
     }
@@ -43,10 +76,41 @@ const MeetingChat = ({ meetingId, isOpen, onClose }: MeetingChatProps) => {
     setIsSending(true);
     try {
       const token = await getToken();
-      if (!token) return;
+      if (!token || !user) return;
 
-      const sentMessage = await chatApi.sendMessage(meetingId, newMessage.trim(), token);
-      setMessages(prev => [...prev, sentMessage]);
+      if (e2eeEnabled) {
+        // Encrypt message before sending
+        const encryptedData = await encryptChatMessage(
+          meetingId,
+          newMessage.trim(),
+          user.id,
+          user.firstName || user.username || 'User',
+          user.imageUrl
+        );
+
+        const sentMessage = await chatApi.sendEncryptedMessage(
+          meetingId,
+          {
+            encryptedMessage: encryptedData.encryptedMessage,
+            iv: encryptedData.iv,
+          },
+          token
+        );
+
+        // Decrypt for local display
+        const decryptedMessage = await decryptChatMessage(meetingId, {
+          ...sentMessage,
+          encryptedMessage: sentMessage.encryptedMessage,
+          iv: sentMessage.iv,
+        });
+
+        setMessages(prev => [...prev, decryptedMessage]);
+      } else {
+        // Fallback to unencrypted (should not happen if E2EE is required)
+        const sentMessage = await chatApi.sendMessage(meetingId, newMessage.trim(), token);
+        setMessages(prev => [...prev, sentMessage]);
+      }
+
       setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);

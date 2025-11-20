@@ -23,19 +23,23 @@ router.get('/:meetingId', verifyAuth, async (req: Request, res: Response) => {
   }
 });
 
-// Send a chat message
+// Send a chat message (supports both plaintext and encrypted)
 router.post('/:meetingId', verifyAuth, async (req: Request, res: Response) => {
   try {
     const userId = req.userId;
     const { meetingId } = req.params;
-    const { message } = req.body;
+    const { message, encryptedMessage, iv } = req.body;
 
     if (!userId) {
       return res.status(401).json({ error: 'User ID not found' });
     }
 
-    if (!message || message.trim().length === 0) {
-      return res.status(400).json({ error: 'Message is required' });
+    // Support both encrypted and plaintext messages
+    const isEncrypted = !!(encryptedMessage && iv);
+    const hasContent = !!(message?.trim() || encryptedMessage);
+
+    if (!hasContent) {
+      return res.status(400).json({ error: 'Message or encrypted message is required' });
     }
 
     // Get user info
@@ -59,7 +63,10 @@ router.post('/:meetingId', verifyAuth, async (req: Request, res: Response) => {
       userId,
       userName: getUserDisplayName(),
       userImageUrl: user.imageUrl,
-      message: message.trim(),
+      message: isEncrypted ? '[Encrypted]' : message.trim(), // Store placeholder for encrypted
+      encryptedMessage: isEncrypted ? encryptedMessage : undefined,
+      iv: isEncrypted ? iv : undefined,
+      isEncrypted,
       timestamp: new Date(),
     });
 
@@ -69,6 +76,58 @@ router.post('/:meetingId', verifyAuth, async (req: Request, res: Response) => {
   } catch (error: any) {
     console.error('Error sending chat message:', error);
     res.status(500).json({ error: 'Failed to send chat message', details: error.message });
+  }
+});
+
+// Send an encrypted chat message (E2EE)
+router.post('/:meetingId/encrypted', verifyAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId;
+    const { meetingId } = req.params;
+    const { encryptedMessage, iv } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'User ID not found' });
+    }
+
+    if (!encryptedMessage || !iv) {
+      return res.status(400).json({ error: 'Encrypted message and IV are required' });
+    }
+
+    // Get user info
+    const user = await User.findOne({ clerkId: userId });
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    // Get user's full name
+    const getUserDisplayName = () => {
+      if (user.firstName) {
+        return user.lastName 
+          ? `${user.firstName} ${user.lastName}`.trim()
+          : user.firstName;
+      }
+      return user.username || user.email?.split('@')[0] || 'User';
+    };
+
+    const chatMessage = new Chat({
+      meetingId,
+      userId,
+      userName: getUserDisplayName(),
+      userImageUrl: user.imageUrl,
+      message: '[Encrypted]', // Placeholder - actual content is encrypted
+      encryptedMessage,
+      iv,
+      isEncrypted: true,
+      timestamp: new Date(),
+    });
+
+    await chatMessage.save();
+
+    res.status(201).json(chatMessage);
+  } catch (error: any) {
+    console.error('Error sending encrypted chat message:', error);
+    res.status(500).json({ error: 'Failed to send encrypted chat message', details: error.message });
   }
 });
 
