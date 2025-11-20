@@ -37,7 +37,7 @@ const MeetingModal = ({
       <DialogContent className="flex w-full max-w-[520px] flex-col gap-6 border border-light-4 bg-white px-6 py-8 text-text-primary shadow-xl">
         <div className="flex flex-col gap-6">
           {image && (
-            <div className="flex justify-center">
+            <div className="flex justify-center checked-icon-wrapper">
               <Image 
                 src={image} 
                 alt="" 

@@ -591,3 +591,42 @@ html {
 }
 
 /* Note: box-shadow is handled by Framer Motion whileHover, not CSS */
+
+/* Animated Checked Icon Styles */
+.checked-icon-wrapper {
+  animation: checkedScaleIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  transform-origin: center;
+}
+
+.checked-icon-wrapper img {
+  display: block;
+  animation: checkedIconPulse 2s ease-in-out infinite;
+}
+
+@keyframes checkedScaleIn {
+  0% {
+    transform: scale(0) rotate(-180deg);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.15) rotate(10deg);
+  }
+  80% {
+    transform: scale(0.95) rotate(-5deg);
+  }
+  100% {
+    transform: scale(1) rotate(0deg);
+    opacity: 1;
+  }
+}
+
+@keyframes checkedIconPulse {
+  0%, 100% {
+    filter: drop-shadow(0 0 8px rgba(16, 185, 129, 0.4));
+    transform: scale(1);
+  }
+  50% {
+    filter: drop-shadow(0 0 16px rgba(16, 185, 129, 0.7));
+    transform: scale(1.02);
+  }
+}
