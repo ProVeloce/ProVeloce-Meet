@@ -421,7 +421,7 @@ html {
   }
 }
 
-/* Infinite smooth animations for E2EE and UI enhancements */
+/* Infinite smooth animations for UI enhancements */
 @keyframes pulse-glow {
   0%, 100% {
     opacity: 1;

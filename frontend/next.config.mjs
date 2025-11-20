@@ -16,8 +16,8 @@ const nextConfig = {
     imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
   },
   eslint: {
-    // Warning: This allows production builds to successfully complete even if
-    // your project has ESLint errors/warnings.
+    // ESLint errors are ignored during builds for faster deployment
+    // Run `npm run lint` locally to check for issues
     ignoreDuringBuilds: true,
   },
   typescript: {
