@@ -77,7 +77,7 @@ const MeetingTypeList = () => {
 
       // Create meeting in database (same as PersonalRoom)
       const newMeeting = await meetingApi.createMeeting({
-        title: `${displayName}'s Instant Meeting`,
+        title: `${displayName}'s Meeting Room`,
         type: 'instant',
       }, token);
 

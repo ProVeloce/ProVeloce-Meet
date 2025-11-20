@@ -9,10 +9,15 @@ import {
   importKey,
   arrayBufferToBase64,
   base64ToArrayBuffer,
+  generateX25519KeyPair,
   generateDHKeyPair,
-  deriveSharedSecret,
+  deriveSharedSecretBits,
   exportPublicKey,
+  importX25519PublicKey,
   importPublicKey,
+  deriveWrappingKey,
+  wrapKey,
+  unwrapKey,
 } from './crypto-utils';
 
 export interface ParticipantKeyInfo {
@@ -22,10 +27,13 @@ export interface ParticipantKeyInfo {
 }
 
 export interface MeetingKeyData {
-  meetingKey: CryptoKey;
+  meetingKey: CryptoKey | null;
   keyId: string; // Unique identifier for this key version (for rekeying)
   participants: Map<string, ParticipantKeyInfo>;
   isHost: boolean;
+  createdAt: number; // Timestamp when key was created
+  lastRekeyAt: number; // Timestamp of last rekey
+  hostUserId?: string; // Current host user ID
 }
 
 /**
@@ -45,8 +53,14 @@ export class E2EEKeyManager {
     userId: string,
     isHost: boolean
   ): Promise<{ keyId: string; publicKey: string }> {
-    // Generate DH key pair for this user
-    const dhKeyPair = await generateDHKeyPair();
+    // Generate X25519 key pair for this user (with P-256 fallback)
+    let dhKeyPair: CryptoKeyPair;
+    try {
+      dhKeyPair = await generateX25519KeyPair();
+    } catch {
+      // Fallback to P-256 if X25519 not supported
+      dhKeyPair = await generateDHKeyPair();
+    }
     this.dhKeyPairs.set(`${meetingId}:${userId}`, dhKeyPair);
 
     const publicKeyBuffer = await exportPublicKey(dhKeyPair.publicKey);
@@ -56,6 +70,7 @@ export class E2EEKeyManager {
       // Host generates the meeting encryption key
       const meetingKey = await generateEncryptionKey();
       const keyId = crypto.randomUUID();
+      const createdAt = Date.now();
 
       this.meetingKeys.set(meetingId, {
         meetingKey,
@@ -70,6 +85,8 @@ export class E2EEKeyManager {
           ],
         ]),
         isHost: true,
+        createdAt,
+        lastRekeyAt: createdAt,
       });
 
       return { keyId, publicKey: publicKeyBase64 };
@@ -90,6 +107,8 @@ export class E2EEKeyManager {
             ],
           ]),
           isHost: false,
+          createdAt: Date.now(),
+          lastRekeyAt: 0,
         });
       } else {
         const meetingData = this.meetingKeys.get(meetingId)!;
@@ -104,19 +123,19 @@ export class E2EEKeyManager {
   }
 
   /**
-   * Host shares meeting key with participant using ECDH
+   * Host shares meeting key with participant using X25519 ECDH + HKDF + Key Wrapping
    */
   async shareKeyWithParticipant(
     meetingId: string,
     participantUserId: string,
     participantPublicKeyBase64: string
-  ): Promise<string> {
+  ): Promise<{ wrappedKey: string; iv: string; keyId: string }> {
     const meetingData = this.meetingKeys.get(meetingId);
-    if (!meetingData || !meetingData.isHost) {
+    if (!meetingData || !meetingData.isHost || !meetingData.meetingKey) {
       throw new Error('Only host can share meeting key');
     }
 
-    const hostUserId = Array.from(meetingData.participants.keys())[0];
+    const hostUserId = meetingData.hostUserId || Array.from(meetingData.participants.keys())[0];
     const hostDHKeyPair = this.dhKeyPairs.get(`${meetingId}:${hostUserId}`);
     if (!hostDHKeyPair) {
       throw new Error('Host DH key pair not found');
@@ -124,39 +143,52 @@ export class E2EEKeyManager {
 
     // Import participant's public key
     const participantPublicKeyBuffer = base64ToArrayBuffer(participantPublicKeyBase64);
-    const participantPublicKey = await importPublicKey(participantPublicKeyBuffer);
+    let participantPublicKey: CryptoKey;
+    try {
+      participantPublicKey = await importX25519PublicKey(participantPublicKeyBuffer);
+    } catch {
+      participantPublicKey = await importPublicKey(participantPublicKeyBuffer);
+    }
 
-    // Derive shared secret
-    const sharedSecret = await deriveSharedSecret(
+    // Derive shared secret bits
+    const sharedSecretBits = await deriveSharedSecretBits(
       hostDHKeyPair.privateKey,
       participantPublicKey
     );
 
-    // Export meeting key
-    const meetingKeyBuffer = await exportKey(meetingData.meetingKey);
+    // Derive wrapping key using HKDF
+    const wrappingKey = await deriveWrappingKey(
+      sharedSecretBits,
+      meetingId,
+      participantUserId
+    );
 
-    // Encrypt meeting key with shared secret (using a simple encryption)
-    // In production, use proper key wrapping
-    const encryptedKey = arrayBufferToBase64(meetingKeyBuffer);
+    // Wrap the meeting key
+    const { wrappedKey, iv } = await wrapKey(meetingData.meetingKey, wrappingKey);
 
     // Store participant info
     meetingData.participants.set(participantUserId, {
       userId: participantUserId,
       publicKey: participantPublicKeyBase64,
-      sharedSecret,
     });
 
-    return encryptedKey;
+    return {
+      wrappedKey,
+      iv,
+      keyId: meetingData.keyId,
+    };
   }
 
   /**
-   * Participant receives and sets meeting key
+   * Participant receives and unwraps meeting key
    */
   async receiveMeetingKey(
     meetingId: string,
     userId: string,
-    encryptedKey: string,
-    hostPublicKeyBase64: string
+    wrappedKey: string,
+    iv: string,
+    hostPublicKeyBase64: string,
+    keyId: string
   ): Promise<void> {
     const meetingData = this.meetingKeys.get(meetingId);
     if (!meetingData) {
@@ -170,27 +202,32 @@ export class E2EEKeyManager {
 
     // Import host's public key
     const hostPublicKeyBuffer = base64ToArrayBuffer(hostPublicKeyBase64);
-    const hostPublicKey = await importPublicKey(hostPublicKeyBuffer);
+    let hostPublicKey: CryptoKey;
+    try {
+      hostPublicKey = await importX25519PublicKey(hostPublicKeyBuffer);
+    } catch {
+      hostPublicKey = await importPublicKey(hostPublicKeyBuffer);
+    }
 
-    // Derive shared secret
-    const sharedSecret = await deriveSharedSecret(
+    // Derive shared secret bits
+    const sharedSecretBits = await deriveSharedSecretBits(
       participantDHKeyPair.privateKey,
       hostPublicKey
     );
 
-    // Decrypt and import meeting key
-    const keyBuffer = base64ToArrayBuffer(encryptedKey);
-    const meetingKey = await importKey(keyBuffer);
+    // Derive wrapping key using HKDF
+    const wrappingKey = await deriveWrappingKey(
+      sharedSecretBits,
+      meetingId,
+      userId
+    );
+
+    // Unwrap the meeting key
+    const meetingKey = await unwrapKey(wrappedKey, iv, wrappingKey);
 
     meetingData.meetingKey = meetingKey;
-    const participantPublicKeyBuffer = await exportPublicKey(participantDHKeyPair.publicKey);
-    const participantPublicKeyBase64 = arrayBufferToBase64(participantPublicKeyBuffer);
-    
-    meetingData.participants.set(userId, {
-      userId,
-      publicKey: participantPublicKeyBase64,
-      sharedSecret,
-    });
+    meetingData.keyId = keyId;
+    meetingData.lastRekeyAt = Date.now();
   }
 
   /**
@@ -211,21 +248,95 @@ export class E2EEKeyManager {
 
   /**
    * Rekey meeting (generate new key when participant joins/leaves)
+   * Returns wrapped keys for all current participants
    */
-  async rekeyMeeting(meetingId: string): Promise<string> {
+  async rekeyMeeting(meetingId: string): Promise<{
+    keyId: string;
+    wrappedKeys: Map<string, { wrappedKey: string; iv: string }>;
+  }> {
     const meetingData = this.meetingKeys.get(meetingId);
-    if (!meetingData || !meetingData.isHost) {
+    if (!meetingData || !meetingData.isHost || !meetingData.meetingKey) {
       throw new Error('Only host can rekey meeting');
     }
 
     // Generate new key
     const newMeetingKey = await generateEncryptionKey();
     const newKeyId = crypto.randomUUID();
+    const hostUserId = meetingData.hostUserId || Array.from(meetingData.participants.keys())[0];
+    const hostDHKeyPair = this.dhKeyPairs.get(`${meetingId}:${hostUserId}`);
+    
+    if (!hostDHKeyPair) {
+      throw new Error('Host DH key pair not found');
+    }
 
+    // Wrap new key for all participants
+    const wrappedKeys = new Map<string, { wrappedKey: string; iv: string }>();
+
+    for (const [participantId, participantInfo] of meetingData.participants.entries()) {
+      if (participantId === hostUserId) {
+        // Host doesn't need wrapped key
+        continue;
+      }
+
+      try {
+        const wrapped = await this.shareKeyWithParticipant(
+          meetingId,
+          participantId,
+          participantInfo.publicKey
+        );
+        wrappedKeys.set(participantId, {
+          wrappedKey: wrapped.wrappedKey,
+          iv: wrapped.iv,
+        });
+      } catch (error) {
+        console.error(`Failed to wrap key for participant ${participantId}:`, error);
+      }
+    }
+
+    // Update meeting key
     meetingData.meetingKey = newMeetingKey;
     meetingData.keyId = newKeyId;
+    meetingData.lastRekeyAt = Date.now();
 
-    return newKeyId;
+    return {
+      keyId: newKeyId,
+      wrappedKeys,
+    };
+  }
+
+  /**
+   * Transfer host role and rekey
+   */
+  async transferHost(
+    meetingId: string,
+    newHostUserId: string
+  ): Promise<{
+    keyId: string;
+    wrappedKeys: Map<string, { wrappedKey: string; iv: string }>;
+  }> {
+    const meetingData = this.meetingKeys.get(meetingId);
+    if (!meetingData || !meetingData.isHost) {
+      throw new Error('Only current host can transfer host role');
+    }
+
+    // Rekey with new host
+    meetingData.isHost = false;
+    meetingData.hostUserId = newHostUserId;
+    
+    // The new host will need to initialize as host
+    // For now, we'll rekey and let the new host take over
+    return this.rekeyMeeting(meetingId);
+  }
+
+  /**
+   * Check if rekey is needed (based on time or participant count)
+   */
+  shouldRekey(meetingId: string, maxKeyAgeMinutes: number = 60): boolean {
+    const meetingData = this.meetingKeys.get(meetingId);
+    if (!meetingData) return false;
+
+    const ageMinutes = (Date.now() - meetingData.lastRekeyAt) / (1000 * 60);
+    return ageMinutes >= maxKeyAgeMinutes;
   }
 
   /**

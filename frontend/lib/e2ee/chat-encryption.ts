@@ -1,9 +1,9 @@
 /**
  * E2EE Chat Message Encryption
- * Encrypts chat messages before sending, decrypts on receive
+ * Encrypts chat messages before sending with AAD, decrypts on receive
  */
 
-import { encrypt, decrypt } from './crypto-utils';
+import { encryptMessage, decryptMessage } from './crypto-utils';
 import { e2eeKeyManager } from './key-manager';
 
 export interface EncryptedChatMessage {
@@ -18,7 +18,7 @@ export interface EncryptedChatMessage {
 }
 
 /**
- * Encrypt a chat message before sending
+ * Encrypt a chat message before sending with AAD (Authenticated Associated Data)
  */
 export async function encryptChatMessage(
   meetingId: string,
@@ -32,7 +32,14 @@ export async function encryptChatMessage(
     throw new Error('E2EE not initialized for this meeting');
   }
 
-  const { ciphertext, iv } = await encrypt(message, meetingKey);
+  const timestamp = new Date().toISOString();
+  const { ciphertext, iv } = await encryptMessage(
+    message,
+    meetingKey,
+    meetingId,
+    userId,
+    timestamp
+  );
 
   return {
     encryptedMessage: ciphertext,
@@ -40,13 +47,13 @@ export async function encryptChatMessage(
     userId,
     userName,
     userImageUrl,
-    timestamp: new Date().toISOString(),
+    timestamp,
     meetingId,
   };
 }
 
 /**
- * Decrypt a chat message after receiving
+ * Decrypt a chat message after receiving with AAD verification
  */
 export async function decryptChatMessage(
   meetingId: string,
@@ -57,20 +64,29 @@ export async function decryptChatMessage(
     throw new Error('E2EE not initialized for this meeting');
   }
 
-  const decryptedMessage = await decrypt(
-    encryptedMessage.encryptedMessage,
-    encryptedMessage.iv,
-    meetingKey
-  );
+  try {
+    const decryptedMessage = await decryptMessage(
+      encryptedMessage.encryptedMessage,
+      encryptedMessage.iv,
+      meetingKey,
+      meetingId,
+      encryptedMessage.userId,
+      encryptedMessage.timestamp
+    );
 
-  return {
-    message: decryptedMessage,
-    userId: encryptedMessage.userId,
-    userName: encryptedMessage.userName,
-    userImageUrl: encryptedMessage.userImageUrl,
-    timestamp: encryptedMessage.timestamp,
-    meetingId: encryptedMessage.meetingId,
-    _id: encryptedMessage._id,
-  };
+    return {
+      message: decryptedMessage,
+      userId: encryptedMessage.userId,
+      userName: encryptedMessage.userName,
+      userImageUrl: encryptedMessage.userImageUrl,
+      timestamp: encryptedMessage.timestamp,
+      meetingId: encryptedMessage.meetingId,
+      _id: encryptedMessage._id,
+    };
+  } catch (error: any) {
+    // If decryption fails, return error message
+    console.error('[E2EE] Chat message decryption failed:', error);
+    throw new Error('Failed to decrypt message. It may have been encrypted with a different key.');
+  }
 }
 

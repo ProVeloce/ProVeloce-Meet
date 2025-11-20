@@ -21,20 +21,11 @@ const DashboardClock = ({ className = '' }: DashboardClockProps) => {
     // Set initial time immediately
     updateTime();
 
-    // Calculate milliseconds until next minute
-    const now = new Date();
-    const msUntilNextMinute = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
-
-    // Set timeout for first update at the next minute
-    const timeoutId = setTimeout(() => {
-      updateTime();
-      // Then set interval for every minute after that
-      intervalRef.current = setInterval(updateTime, 60000);
-    }, msUntilNextMinute);
+    // Update every second for live clock
+    intervalRef.current = setInterval(updateTime, 1000);
 
     // Cleanup function
     return () => {
-      clearTimeout(timeoutId);
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
         intervalRef.current = null;

@@ -81,7 +81,7 @@ const UpcomingMeeting = () => {
   }
 
   return (
-    <h2 className="glassmorphism max-w-[273px] rounded py-2 text-center text-base font-normal">
+    <h2 className="text-base sm:text-lg font-medium text-white/95 mt-2">
       Upcoming Meeting at: {formattedTime}
     </h2>
   );
