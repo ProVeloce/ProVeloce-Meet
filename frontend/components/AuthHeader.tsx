@@ -2,7 +2,11 @@
 
 import { useState } from 'react';
 import { SignedOut } from '@clerk/nextjs';
+import { motion } from 'framer-motion';
+import Image from 'next/image';
+import Link from 'next/link';
 import AuthModal from './AuthModal';
+import { fadeInLeft } from '@/lib/animations';
 
 const AuthHeader = () => {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
@@ -10,8 +14,44 @@ const AuthHeader = () => {
 
   return (
     <>
-      <header className="flex justify-end items-center p-4 gap-3 sm:gap-4 h-16">
-        <SignedOut>
+      <header className="flex justify-between items-center p-4 gap-3 sm:gap-4 h-16 bg-white border-b border-light-4 shadow-sm">
+        {/* Logo and Company Name */}
+        <motion.div
+          initial="hidden"
+          animate="visible"
+          variants={fadeInLeft}
+          transition={{ duration: 0.5 }}
+          className="flex items-center gap-2.5"
+        >
+          <Link 
+            href="/" 
+            className="flex items-center gap-2.5 hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-google-blue focus:ring-offset-2 rounded-md"
+            aria-label="ProVeloce Meet Home"
+          >
+            <div className="logo-gradient-wrapper relative">
+              <Image
+                src="/icons/logo.jpeg"
+                width={32}
+                height={32}
+                alt="ProVeloce Meet logo"
+                className="w-8 h-8 sm:w-9 sm:h-9 logo-gradient"
+                priority
+              />
+            </div>
+            <motion.p 
+              className="text-xl sm:text-2xl font-bold gradient-text max-sm:hidden"
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2, duration: 0.5 }}
+            >
+              ProVeloce Meet
+            </motion.p>
+          </Link>
+        </motion.div>
+
+        {/* Auth Buttons */}
+        <div className="flex items-center gap-3 sm:gap-4">
+          <SignedOut>
           <button
             onClick={() => {
               setAuthMode('sign-in');
@@ -32,7 +72,8 @@ const AuthHeader = () => {
           >
             Sign Up
           </button>
-        </SignedOut>
+          </SignedOut>
+        </div>
       </header>
 
       <AuthModal
