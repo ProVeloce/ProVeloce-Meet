@@ -66,7 +66,7 @@ All application data is now stored in MongoDB instead of temporary storage:
 
 #### Backend (.env):
 ```env
-MONGO_URI=mongodb+srv://proveloce-meet:ProVeloce@12345@proveloce-meet.ut6jcqt.mongodb.net/
+MONGO_URI=mongodb+srv://proveloce-meet:ProVeloce%4012345@proveloce-meet.ut6jcqt.mongodb.net/
 CLERK_SECRET_KEY=your_clerk_secret_key
 STREAM_API_KEY=your_stream_api_key
 STREAM_SECRET_KEY=your_stream_secret_key

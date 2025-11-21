@@ -55,7 +55,7 @@ Add the following environment variables in Render Dashboard → Your Service →
 
 ```bash
 # MongoDB
-MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/database?retryWrites=true&w=majority
+MONGO_URI=mongodb+srv://proveloce-meet:ProVeloce%4012345@proveloce-meet.ut6jcqt.mongodb.net/
 
 # Clerk Authentication
 CLERK_SECRET_KEY=sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
@@ -168,7 +168,7 @@ Replace `your-backend-service.onrender.com` with your actual Render backend URL.
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `MONGO_URI` | MongoDB connection string | `mongodb+srv://user:pass@cluster.mongodb.net/db` |
+| `MONGO_URI` | MongoDB connection string | `mongodb+srv://proveloce-meet:ProVeloce%4012345@proveloce-meet.ut6jcqt.mongodb.net/` |
 | `CLERK_SECRET_KEY` | Clerk backend secret key | `sk_test_...` |
 | `CLERK_DOMAIN` | Clerk domain (optional, auto-detected) | `https://xxx.clerk.accounts.dev` |
 | `STREAM_API_KEY` | Stream.io API key | `your_api_key` |

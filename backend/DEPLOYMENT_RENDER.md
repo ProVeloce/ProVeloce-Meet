@@ -36,7 +36,7 @@ Add these environment variables in Render Dashboard → Your Service → Environ
 
 ```bash
 # MongoDB Connection
-MONGO_URI=mongodb+srv://username:password@cluster.mongodb.net/database?retryWrites=true&w=majority
+MONGO_URI=mongodb+srv://proveloce-meet:ProVeloce%4012345@proveloce-meet.ut6jcqt.mongodb.net/
 
 # Clerk Authentication
 CLERK_SECRET_KEY=sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
