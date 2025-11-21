@@ -42,7 +42,7 @@ npm run install:all
 
    **Backend** - Create a `.env` file in the `backend` directory:
    ```env
-   MONGO_URI=mongodb+srv://proveloce-meet:ProVeloce%4012345@proveloce-meet.ut6jcqt.mongodb.net/
+   MONGO_URI=your_mongo_uri
    CLERK_SECRET_KEY=your_clerk_secret_key
    STREAM_API_KEY=your_stream_api_key
    STREAM_SECRET_KEY=your_stream_secret_key
