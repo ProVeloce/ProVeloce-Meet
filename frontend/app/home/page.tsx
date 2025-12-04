@@ -36,7 +36,7 @@ const Home = () => {
     };
   }, []);
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://proveloce-meet.vercel.app';
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://meet.proveloce.com';
   const structuredData = generateSoftwareAppSchema(baseUrl);
 
   return (

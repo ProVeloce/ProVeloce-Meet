@@ -38,14 +38,14 @@ export const metadata: Metadata = {
   authors: [{ name: "ProVeloce" }],
   creator: "ProVeloce",
   publisher: "ProVeloce",
-  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || "https://proveloce-meet.vercel.app"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || "https://meet.proveloce.com"),
   alternates: {
     canonical: "/",
   },
   openGraph: {
     type: "website",
     locale: "en_US",
-    url: process.env.NEXT_PUBLIC_BASE_URL || "https://proveloce-meet.vercel.app",
+    url: process.env.NEXT_PUBLIC_BASE_URL || "https://meet.proveloce.com",
     siteName: "ProVeloce Meet",
     title: "ProVeloce Meet - Secure Online Meeting Platform",
     description: "Professional video conferencing software for businesses. Host secure online meetings with real-time collaboration.",

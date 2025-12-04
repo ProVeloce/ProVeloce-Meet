@@ -41,7 +41,7 @@ export default function SEOHead({
   noindex = false,
   structuredData,
 }: SEOHeadProps) {
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://proveloce-meet.vercel.app';
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://meet.proveloce.com';
   const fullTitle = title ? `${title} | ProVeloce Meet` : defaultTitle;
   const fullDescription = description || defaultDescription;
   const allKeywords = [...defaultKeywords, ...keywords].join(', ');

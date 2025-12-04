@@ -94,7 +94,7 @@ export function generateRecordingFilename(
  * Generate semantic URL for joining a meeting
  */
 export function generateJoinMeetingUrl(roomCode: string, baseUrl?: string): string {
-  const base = baseUrl || process.env.NEXT_PUBLIC_BASE_URL || 'https://proveloce-meet.vercel.app';
+  const base = baseUrl || process.env.NEXT_PUBLIC_BASE_URL || 'https://meet.proveloce.com';
   return `${base}/join-meeting/${roomCode}`;
 }
 
@@ -102,7 +102,7 @@ export function generateJoinMeetingUrl(roomCode: string, baseUrl?: string): stri
  * Generate semantic URL for host dashboard
  */
 export function generateHostDashboardUrl(hostId: string, baseUrl?: string): string {
-  const base = baseUrl || process.env.NEXT_PUBLIC_BASE_URL || 'https://proveloce-meet.vercel.app';
+  const base = baseUrl || process.env.NEXT_PUBLIC_BASE_URL || 'https://meet.proveloce.com';
   return `${base}/host/dashboard/${hostId}`;
 }
 
@@ -110,7 +110,7 @@ export function generateHostDashboardUrl(hostId: string, baseUrl?: string): stri
  * Generate semantic URL for recordings
  */
 export function generateRecordingUrl(recordingId: string, baseUrl?: string): string {
-  const base = baseUrl || process.env.NEXT_PUBLIC_BASE_URL || 'https://proveloce-meet.vercel.app';
+  const base = baseUrl || process.env.NEXT_PUBLIC_BASE_URL || 'https://meet.proveloce.com';
   return `${base}/host/dashboard/recordings/${recordingId}`;
 }
 
@@ -118,7 +118,7 @@ export function generateRecordingUrl(recordingId: string, baseUrl?: string): str
  * Generate semantic URL for user meeting history
  */
 export function generateHistoryUrl(userId: string, baseUrl?: string): string {
-  const base = baseUrl || process.env.NEXT_PUBLIC_BASE_URL || 'https://proveloce-meet.vercel.app';
+  const base = baseUrl || process.env.NEXT_PUBLIC_BASE_URL || 'https://meet.proveloce.com';
   return `${base}/user/meeting-history/${userId}`;
 }
 
@@ -126,7 +126,7 @@ export function generateHistoryUrl(userId: string, baseUrl?: string): string {
  * Generate structured data for Software Application
  */
 export function generateSoftwareAppSchema(baseUrl?: string): object {
-  const base = baseUrl || process.env.NEXT_PUBLIC_BASE_URL || 'https://proveloce-meet.vercel.app';
+  const base = baseUrl || process.env.NEXT_PUBLIC_BASE_URL || 'https://meet.proveloce.com';
   
   return {
     '@context': 'https://schema.org',
@@ -168,7 +168,7 @@ export function generateMeetingEventSchema(
   meetingUrl?: string,
   baseUrl?: string
 ): object {
-  const base = baseUrl || process.env.NEXT_PUBLIC_BASE_URL || 'https://proveloce-meet.vercel.app';
+  const base = baseUrl || process.env.NEXT_PUBLIC_BASE_URL || 'https://meet.proveloce.com';
   const url = meetingUrl || `${base}/meeting`;
   
   return {

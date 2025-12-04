@@ -64,7 +64,7 @@ const RecordingsPage = () => {
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://proveloce-meet.vercel.app';
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://meet.proveloce.com';
   const breadcrumbSchema = generateBreadcrumbSchema([
     { name: 'Home', url: baseUrl },
     { name: 'Recordings', url: `${baseUrl}/recordings` },

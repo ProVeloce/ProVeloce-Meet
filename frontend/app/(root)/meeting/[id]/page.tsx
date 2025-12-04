@@ -97,7 +97,7 @@ const MeetingPage = () => {
     );
   }
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://proveloce-meet.vercel.app';
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://meet.proveloce.com';
   const meetingId = Array.isArray(id) ? id[0] : id;
   const meetingUrl = `${baseUrl}/meeting/${meetingId}`;
   

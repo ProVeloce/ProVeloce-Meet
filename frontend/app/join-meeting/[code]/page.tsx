@@ -65,7 +65,7 @@ export default function JoinMeetingPage() {
     joinMeeting();
   }, [roomCode, getToken, router]);
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://proveloce-meet.vercel.app';
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://meet.proveloce.com';
 
   return (
     <>
