@@ -1,5 +1,5 @@
 import { Router, Request, Response, NextFunction } from 'express';
-import { clerkClient } from '../config/clerk';
+import { clerkClient, verifyToken } from '../config/clerk';
 // import { verifyClerkToken } from '../utils/jwt-verifier';
 
 const router = Router();
@@ -64,7 +64,7 @@ export const verifyAuth = async (req: Request, res: Response, next: NextFunction
     try {
       // Verify the JWT token using Clerk's official SDK
       // This handles key rotation, issuer validation, and other checks automatically
-      const decoded = await clerkClient.verifyToken(token);
+      const decoded = await verifyToken(token);
 
       if (!decoded || !decoded.sub) {
         console.error('Token verification failed: No sub in decoded token', decoded);

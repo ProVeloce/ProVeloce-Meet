@@ -25,17 +25,18 @@ const clerkClientProxy = {
   get telemetry() {
     return getClerkClient().telemetry;
   },
-  verifyToken(token: string, options?: any) {
-    // Use the verifyToken function directly from @clerk/backend
-    const secretKey = process.env.CLERK_SECRET_KEY;
-    if (!secretKey) {
-      throw new Error('CLERK_SECRET_KEY is not set');
-    }
-    return clerkVerifyToken(token, {
-      secretKey,
-      ...options,
-    });
-  },
+};
+
+// Export verifyToken as a standalone function
+export const verifyToken = (token: string, options?: any) => {
+  const secretKey = process.env.CLERK_SECRET_KEY;
+  if (!secretKey) {
+    throw new Error('CLERK_SECRET_KEY is not set');
+  }
+  return clerkVerifyToken(token, {
+    secretKey,
+    ...options,
+  });
 };
 
 // Type assertion to maintain type safety
