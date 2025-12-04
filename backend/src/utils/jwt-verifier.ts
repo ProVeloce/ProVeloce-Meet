@@ -5,13 +5,21 @@ import jwksClient from 'jwks-rsa';
 let _clerkDomain: string | null = null;
 let _jwks: ReturnType<typeof jwksClient> | null = null;
 
-// Extract Clerk domain from publishable key or use environment variable
+// Extract Clerk domain/issuer from environment variables
 function getClerkDomain(): string {
   if (_clerkDomain) {
     return _clerkDomain;
   }
 
-  // Try to get from environment variable first
+  // Priority 1: Use CLERK_JWT_ISSUER if explicitly set (for custom domains)
+  if (process.env.CLERK_JWT_ISSUER) {
+    _clerkDomain = process.env.CLERK_JWT_ISSUER.startsWith('http') 
+      ? process.env.CLERK_JWT_ISSUER 
+      : `https://${process.env.CLERK_JWT_ISSUER}`;
+    return _clerkDomain;
+  }
+
+  // Priority 2: Use CLERK_DOMAIN if set
   if (process.env.CLERK_DOMAIN) {
     _clerkDomain = process.env.CLERK_DOMAIN.startsWith('http') 
       ? process.env.CLERK_DOMAIN 
@@ -19,7 +27,7 @@ function getClerkDomain(): string {
     return _clerkDomain;
   }
   
-  // Extract from publishable key if available
+  // Priority 3: Extract from publishable key if available
   const publishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || process.env.CLERK_PUBLISHABLE_KEY;
   if (publishableKey && publishableKey.startsWith('pk_')) {
     try {
@@ -37,14 +45,25 @@ function getClerkDomain(): string {
   }
   
   // No fallback for production - domain must be explicitly set
-  throw new Error('CLERK_DOMAIN or NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY must be set in environment variables');
+  throw new Error('CLERK_JWT_ISSUER, CLERK_DOMAIN, or NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY must be set in environment variables');
+}
+
+// Get JWKS URL
+function getJwksUrl(): string {
+  // Priority 1: Use CLERK_JWKS_ENDPOINT if explicitly set
+  if (process.env.CLERK_JWKS_ENDPOINT) {
+    return process.env.CLERK_JWKS_ENDPOINT;
+  }
+  
+  // Priority 2: Construct from domain
+  const clerkDomain = getClerkDomain();
+  return `${clerkDomain}/.well-known/jwks.json`;
 }
 
 // Get JWKS client (lazy-loaded)
 function getJwksClient() {
   if (!_jwks) {
-    const clerkDomain = getClerkDomain();
-    const jwksUrl = `${clerkDomain}/.well-known/jwks.json`;
+    const jwksUrl = getJwksUrl();
     
     _jwks = jwksClient({
       jwksUri: jwksUrl,
@@ -74,13 +93,21 @@ export function verifyClerkToken(token: string): Promise<any> {
   return new Promise((resolve, reject) => {
     const clerkDomain = getClerkDomain();
     
+    // Build verification options
+    const verifyOptions: jwt.VerifyOptions = {
+      algorithms: ['RS256'],
+      issuer: clerkDomain,
+    };
+    
+    // Add audience verification if CLERK_JWT_AUDIENCE is set
+    if (process.env.CLERK_JWT_AUDIENCE) {
+      verifyOptions.audience = process.env.CLERK_JWT_AUDIENCE;
+    }
+    
     jwt.verify(
       token,
       getKey,
-      {
-        algorithms: ['RS256'],
-        issuer: clerkDomain,
-      },
+      verifyOptions,
       (err, decoded) => {
         if (err) {
           reject(err);
