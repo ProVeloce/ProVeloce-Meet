@@ -15,6 +15,72 @@ if (!global.mongoose) {
   global.mongoose = cached;
 }
 
+// Retry connection with exponential backoff
+async function connectWithRetry(
+  uri: string,
+  opts: mongoose.ConnectOptions,
+  dbName: string,
+  maxRetries: number = 5,
+  retryDelay: number = 2000
+): Promise<typeof mongoose> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const mongooseInstance = await mongoose.connect(uri, opts);
+      console.log(`✅ MongoDB connected successfully to database: ${dbName}`);
+      return mongooseInstance;
+    } catch (error: any) {
+      lastError = error;
+      const sanitizedUri = uri.replace(/:[^:@]+@/, ':****@');
+      
+      if (attempt < maxRetries) {
+        const delay = retryDelay * Math.pow(2, attempt - 1); // Exponential backoff
+        console.warn(
+          `⚠️  MongoDB connection attempt ${attempt}/${maxRetries} failed. Retrying in ${delay}ms...`
+        );
+        console.warn(`   Error: ${error.message}`);
+        console.warn(`   URI: ${sanitizedUri}`);
+        
+        // Provide helpful error messages
+        if (error.message?.includes('whitelist') || error.message?.includes('IP')) {
+          console.warn(
+            `   💡 Tip: Make sure your IP address is whitelisted in MongoDB Atlas:`,
+            `   https://www.mongodb.com/docs/atlas/security-whitelist/`
+          );
+        }
+        
+        await new Promise(resolve => setTimeout(resolve, delay));
+      } else {
+        console.error(`❌ MongoDB connection failed after ${maxRetries} attempts.`);
+        console.error(`   Final error: ${error.message}`);
+        console.error(`   URI: ${sanitizedUri}`);
+        
+        // Provide detailed error information
+        if (error.message?.includes('whitelist') || error.message?.includes('IP')) {
+          console.error(
+            `   💡 Solution: Add your IP address to MongoDB Atlas IP Access List:`,
+            `   https://www.mongodb.com/docs/atlas/security-whitelist/`
+          );
+        } else if (error.message?.includes('authentication')) {
+          console.error(
+            `   💡 Solution: Check your MongoDB username and password in MONGO_URI`
+          );
+        } else if (error.message?.includes('ENOTFOUND') || error.message?.includes('DNS')) {
+          console.error(
+            `   💡 Solution: Check your MongoDB hostname in MONGO_URI`
+          );
+        }
+        
+        throw error;
+      }
+    }
+  }
+  
+  // This should never be reached, but TypeScript needs it
+  throw lastError || new Error('MongoDB connection failed');
+}
+
 async function connectDB(): Promise<typeof mongoose> {
   let MONGO_URI = process.env.MONGO_URI || '';
 
@@ -99,15 +165,17 @@ async function connectDB(): Promise<typeof mongoose> {
     const opts = {
       bufferCommands: false,
       dbName: DB_NAME, // Explicitly set database name
+      serverSelectionTimeoutMS: 10000, // How long to try selecting a server
+      connectTimeoutMS: 10000, // How long to wait for initial connection
+      socketTimeoutMS: 45000, // How long to wait for socket operations
+      maxPoolSize: 10, // Maximum number of connections in the pool
+      minPoolSize: 1, // Minimum number of connections in the pool
+      retryWrites: true, // Enable retryable writes
+      retryReads: true, // Enable retryable reads
     };
 
-    cached.promise = mongoose.connect(MONGO_URI, opts).then((mongoose) => {
-      console.log(`✅ MongoDB connected successfully to database: ${DB_NAME}`);
-      return mongoose;
-    }).catch((error) => {
-      console.error(`❌ MongoDB connection failed. URI: ${MONGO_URI.replace(/:[^:@]+@/, ':****@')}`);
-      throw error;
-    });
+    // Retry connection with exponential backoff
+    cached.promise = connectWithRetry(MONGO_URI, opts, DB_NAME);
   }
 
   try {
