@@ -31,11 +31,33 @@ const StreamVideoProvider = ({ children }: { children: ReactNode }) => {
     const initializeClient = async () => {
       try {
         // Get Clerk session token with "meet" template to include correct audience claim
-        const clerkToken = await getToken({ template: "meet" });
+        let clerkToken = await getToken({ template: "meet" });
         
-        if (!clerkToken) {
-          console.warn('No Clerk token available, user might not be authenticated');
+        // Fallback: try without template if template version fails
+        if (!clerkToken || typeof clerkToken !== 'string') {
+          console.warn('Token with template "meet" not available, trying without template...');
+          clerkToken = await getToken();
+        }
+        
+        // Validate token format
+        if (!clerkToken || typeof clerkToken !== 'string') {
+          console.warn('No valid Clerk token available, user might not be authenticated', {
+            tokenType: typeof clerkToken,
+            isNull: clerkToken === null,
+            isUndefined: clerkToken === undefined,
+          });
           return; // Don't initialize if no token
+        }
+
+        // Validate JWT format
+        const tokenParts = clerkToken.split('.');
+        if (tokenParts.length !== 3) {
+          console.error('Initial Clerk token does not have valid JWT format:', {
+            parts: tokenParts.length,
+            tokenLength: clerkToken.length,
+          });
+          setError('Invalid authentication token. Please sign in again.');
+          return;
         }
 
         // Create token provider that fetches from backend
@@ -55,9 +77,35 @@ const StreamVideoProvider = ({ children }: { children: ReactNode }) => {
             retryCountRef.current++;
             
             // Get a fresh token each time with "meet" template
-            const freshToken = await getToken({ template: "meet" });
-            if (!freshToken) {
-              throw new Error('Failed to get authentication token from Clerk');
+            let freshToken = await getToken({ template: "meet" });
+            
+            // Fallback: try without template if template version fails
+            if (!freshToken || typeof freshToken !== 'string') {
+              console.warn('Token with template "meet" failed, trying without template...');
+              freshToken = await getToken();
+            }
+            
+            // Validate token format before sending
+            if (!freshToken || typeof freshToken !== 'string') {
+              console.error('Invalid token from Clerk:', {
+                tokenType: typeof freshToken,
+                tokenValue: freshToken,
+                isNull: freshToken === null,
+                isUndefined: freshToken === undefined,
+              });
+              throw new Error('Failed to get valid authentication token from Clerk. Please sign in again.');
+            }
+
+            // Validate JWT format (should have 3 parts separated by dots)
+            const tokenParts = freshToken.split('.');
+            if (tokenParts.length !== 3) {
+              console.error('Token does not have valid JWT format:', {
+                parts: tokenParts.length,
+                tokenLength: freshToken.length,
+                tokenPreview: freshToken.substring(0, 50),
+                tokenStartsWith: freshToken.substring(0, 10),
+              });
+              throw new Error('Invalid JWT token format from Clerk. Please sign in again.');
             }
 
             const response = await apiClient.post<{ token: string }>(

@@ -33,8 +33,13 @@ export const verifyAuth = async (req: Request, res: Response, next: NextFunction
       console.error('Token is empty or invalid', {
         tokenLength: token?.length || 0,
         tokenPreview: token?.substring(0, 50) || 'none',
+        authHeaderLength: authHeader?.length || 0,
+        authHeaderPreview: authHeader?.substring(0, 100) || 'none',
       });
-      return res.status(401).json({ error: 'Unauthorized: Invalid token format' });
+      return res.status(401).json({ 
+        error: 'Unauthorized: Invalid token format',
+        details: 'Token is empty or missing from Authorization header'
+      });
     }
     
     // Check if token looks like a JWT (has 3 parts separated by dots)
@@ -44,12 +49,15 @@ export const verifyAuth = async (req: Request, res: Response, next: NextFunction
         expectedParts: 3,
         actualParts: tokenParts.length,
         tokenLength: token.length,
-        tokenPreview: token.substring(0, 50) + '...',
+        tokenPreview: token.substring(0, 50) + (token.length > 50 ? '...' : ''),
         firstPartLength: tokenParts[0]?.length || 0,
+        secondPartLength: tokenParts[1]?.length || 0,
+        thirdPartLength: tokenParts[2]?.length || 0,
+        tokenStartsWith: token.substring(0, 10),
       });
       return res.status(401).json({ 
         error: 'Unauthorized: Invalid token format',
-        details: `Token should have 3 parts separated by dots, but has ${tokenParts.length} parts`
+        details: `Token should have 3 parts separated by dots (header.payload.signature), but has ${tokenParts.length} parts. Token length: ${token.length}`
       });
     }
     
