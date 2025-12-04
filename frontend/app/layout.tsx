@@ -1,6 +1,7 @@
 import { ReactNode } from "react";
 import type { Metadata } from "next";
 import Script from "next/script";
+import { ClerkProvider } from "@clerk/nextjs";
 import { Roboto } from "next/font/google";
 
 import "@stream-io/video-react-sdk/dist/css/styles.css";
@@ -9,7 +10,6 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import AuthHeader from "@/components/AuthHeader";
 import ErrorBoundary from "@/components/ErrorBoundary";
-import ClerkProviderWrapper from "@/components/ClerkProviderWrapper";
 
 // Use Roboto font (Google's standard font, similar to Google Sans)
 const roboto = Roboto({ 
@@ -86,22 +86,41 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: Readonly<{ children: ReactNode }>) {
-  const clerkAppearance = {
-    layout: {
-      socialButtonsVariant: "iconButton" as const,
-      logoImageUrl: "/icons/logo.jpeg",
-    },
-    variables: {
-      colorText: "#202124",
-      colorPrimary: "#1A73E8",
-      colorBackground: "#FFFFFF",
-      colorInputBackground: "#F8F9FA",
-      colorInputText: "#202124",
-    },
-  };
+  // Determine if we're running on localhost based on environment variables
+  // For runtime detection, we'll use a client-side script
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
+  const isLocalhost = !baseUrl || baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1');
+  
+  // Check if domain should be explicitly disabled
+  const disableClerkDomain = process.env.NEXT_PUBLIC_DISABLE_CLERK_DOMAIN === 'true';
+  
+  // Only use custom domain when:
+  // 1. Not explicitly disabled
+  // 2. Not on localhost (based on env var)
+  // 3. In production environment
+  // Note: For runtime localhost detection, set NEXT_PUBLIC_DISABLE_CLERK_DOMAIN=true
+  const shouldUseCustomDomain = !disableClerkDomain && !isLocalhost && process.env.NODE_ENV === 'production';
+  const clerkDomain = shouldUseCustomDomain
+    ? (process.env.NEXT_PUBLIC_CLERK_DOMAIN || 'clerk.meet.proveloce.com')
+    : undefined;
 
   return (
-    <ClerkProviderWrapper appearance={clerkAppearance}>
+    <ClerkProvider
+      {...(clerkDomain ? { domain: clerkDomain } : {})}
+      appearance={{
+        layout: {
+          socialButtonsVariant: "iconButton",
+          logoImageUrl: "/icons/logo.jpeg",
+        },
+        variables: {
+          colorText: "#202124",
+          colorPrimary: "#1A73E8",
+          colorBackground: "#FFFFFF",
+          colorInputBackground: "#F8F9FA",
+          colorInputText: "#202124",
+        },
+      }}
+    >
       <html lang="en">
         <body className={`${roboto.variable} ${roboto.className} bg-light-2 text-text-primary`}>
           {/* Define __pcPlatform before copilot script loads to prevent "PC plat undefined" error */}
@@ -112,6 +131,37 @@ export default function RootLayout({
               __html: `window.__pcPlatform = navigator.userAgent || "web";`,
             }}
           />
+          {/* Warn if using production Clerk keys on localhost */}
+          <Script
+            id="clerk-localhost-warning"
+            strategy="afterInteractive"
+            dangerouslySetInnerHTML={{
+              __html: `
+                (function() {
+                  const isLocalhost = window.location.hostname === 'localhost' || 
+                    window.location.hostname === '127.0.0.1' ||
+                    window.location.hostname.startsWith('192.168.') ||
+                    window.location.hostname.startsWith('10.') ||
+                    window.location.hostname.startsWith('172.');
+                  const publishableKey = '${process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY || ''}';
+                  const isProductionKey = publishableKey.startsWith('pk_live_');
+                  const disableDomain = '${process.env.NEXT_PUBLIC_DISABLE_CLERK_DOMAIN || ''}' === 'true';
+                  
+                  if (isLocalhost && isProductionKey && !disableDomain) {
+                    console.warn(
+                      '⚠️ Clerk Production Keys on Localhost:\\n' +
+                      'You are using production Clerk keys (pk_live_...) on localhost.\\n' +
+                      'Production keys are restricted to the configured domain (meet.proveloce.com).\\n\\n' +
+                      'Solutions:\\n' +
+                      '1. Use development keys (pk_test_...) for localhost development\\n' +
+                      '2. Set NEXT_PUBLIC_DISABLE_CLERK_DOMAIN=true in your .env.local file\\n' +
+                      '3. Configure Clerk dashboard to allow localhost as an allowed origin'
+                    );
+                  }
+                })();
+              `,
+            }}
+          />
           <ErrorBoundary>
             <AuthHeader />
             <Toaster />
@@ -119,6 +169,6 @@ export default function RootLayout({
           </ErrorBoundary>
         </body>
       </html>
-    </ClerkProviderWrapper>
+    </ClerkProvider>
   );
 }
