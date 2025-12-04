@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useEffect, useState } from 'react';
+import { ReactNode, useEffect, useState, useRef } from 'react';
 import { StreamVideoClient, StreamVideo } from '@stream-io/video-react-sdk';
 import { useUser, useAuth } from '@clerk/nextjs';
 
@@ -19,6 +19,7 @@ const StreamVideoProvider = ({ children }: { children: ReactNode }) => {
   const [error, setError] = useState<string | null>(null);
   const { user, isLoaded } = useUser();
   const { getToken } = useAuth();
+  const retryCountRef = useRef(0);
 
   useEffect(() => {
     if (!isLoaded || !user) return;
@@ -38,12 +39,25 @@ const StreamVideoProvider = ({ children }: { children: ReactNode }) => {
         }
 
         // Create token provider that fetches from backend
+        // Track retry attempts to prevent infinite loops
+        const MAX_RETRIES = 3;
+        
         const tokenProvider = async () => {
+          // Prevent infinite retry loops
+          if (retryCountRef.current >= MAX_RETRIES) {
+            const errorMessage = `Failed to fetch Stream token after ${MAX_RETRIES} attempts. Please refresh the page.`;
+            console.error(errorMessage);
+            setError(errorMessage);
+            throw new Error(errorMessage);
+          }
+
           try {
+            retryCountRef.current++;
+            
             // Get a fresh token each time with "meet" template
             const freshToken = await getToken({ template: "meet" });
             if (!freshToken) {
-              throw new Error('Failed to get authentication token');
+              throw new Error('Failed to get authentication token from Clerk');
             }
 
             const response = await apiClient.post<{ token: string }>(
@@ -51,18 +65,45 @@ const StreamVideoProvider = ({ children }: { children: ReactNode }) => {
               {},
               freshToken
             );
+
+            // Validate response
+            if (!response || !response.token || typeof response.token !== 'string') {
+              throw new Error('Invalid token response from backend');
+            }
+
+            // Reset retry count on success
+            retryCountRef.current = 0;
             return response.token;
           } catch (error: any) {
+            // Check if it's a 401 error (authentication issue)
+            if (error?.message?.includes('401') || error?.message?.includes('Unauthorized')) {
+              const errorMessage = 'Authentication failed. Please sign in again.';
+              console.error('Authentication error:', {
+                message: error?.message,
+                retryCount: retryCountRef.current,
+              });
+              setError(errorMessage);
+              retryCountRef.current = 0; // Reset on auth error to allow retry after re-auth
+              throw new Error(errorMessage);
+            }
+
+            // For other errors, log and throw
             console.error('Error fetching Stream token:', {
               message: error?.message,
               stack: error?.stack,
+              retryCount: retryCountRef.current,
+              maxRetries: MAX_RETRIES,
             });
-            // Provide more helpful error message
-            const errorMessage = error?.message || 'Failed to fetch Stream token';
-            throw new Error(
-              `Token provider error: ${errorMessage}. ` +
-              `Make sure the backend server is running and accessible at ${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:5000/api'}.`
-            );
+
+            // If we've exhausted retries, set error state
+            if (retryCountRef.current >= MAX_RETRIES) {
+              const errorMessage = `Failed to fetch Stream token: ${error?.message || 'Unknown error'}. Please check your connection and try refreshing the page.`;
+              setError(errorMessage);
+              throw new Error(errorMessage);
+            }
+
+            // Otherwise, throw to allow retry (Stream SDK will retry)
+            throw error;
           }
         };
 
@@ -88,9 +129,11 @@ const StreamVideoProvider = ({ children }: { children: ReactNode }) => {
 
         setVideoClient(client);
         setError(null);
+        retryCountRef.current = 0; // Reset retry count when client is initialized
       } catch (err: any) {
         console.error('Error initializing Stream client:', err);
         setError(err?.message || 'Failed to initialize video client');
+        retryCountRef.current = 0; // Reset retry count on error
       }
     };
 
