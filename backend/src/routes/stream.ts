@@ -16,7 +16,9 @@ const getStreamCredentials = () => {
   return { STREAM_API_KEY, STREAM_API_SECRET };
 };
 
-// Generate Stream token for authenticated user (stores in MongoDB)
+// Generate Stream token for authenticated user
+// IMPORTANT: Token generation should ALWAYS work if authentication passes
+// MongoDB caching is optional and should never block token generation
 router.post('/token', verifyAuth, async (req: Request, res: Response) => {
   try {
     const userId = req.userId;
@@ -42,102 +44,64 @@ router.post('/token', verifyAuth, async (req: Request, res: Response) => {
       });
     }
 
-    // Check if user exists in MongoDB
-    const { User } = await import('../models/User');
-    let user = await User.findOne({ clerkId: userId });
+    // Generate Stream token immediately - this is the core functionality
+    // MongoDB operations are OPTIONAL and should not block this
+    const streamClient = new StreamClient(STREAM_API_KEY, STREAM_API_SECRET);
+    const expirationTime = Math.floor(Date.now() / 1000) + 3600; // 1 hour
+    const issuedAt = Math.floor(Date.now() / 1000) - 60;
+    const token = streamClient.createToken(userId, expirationTime, issuedAt);
 
-    if (!user) {
-      try {
-        // Create user if doesn't exist
-        // Import clerkClient directly to ensure it's available
-        const { clerkClient } = await import('../config/clerk');
-
-        console.log('Fetching user from Clerk:', userId);
-        const clerkUser = await clerkClient.users.getUser(userId);
-
-        if (!clerkUser) {
-          throw new Error('User not found in Clerk');
-        }
-
-        const email = clerkUser.emailAddresses[0]?.emailAddress;
-        if (!email) {
-          console.warn('User has no email address:', userId);
-        }
-
-        user = new User({
-          clerkId: userId,
-          email: email || `${userId}@no-email.com`, // Fallback email to satisfy unique constraint
-          username: clerkUser.username || undefined,
-          firstName: clerkUser.firstName || undefined,
-          lastName: clerkUser.lastName || undefined,
-          imageUrl: clerkUser.imageUrl || undefined,
-        });
-
-        await user.save();
-        console.log('Created new user in MongoDB:', userId);
-      } catch (userError: any) {
-        console.error('Error creating user in MongoDB:', {
-          error: userError?.message,
-          stack: userError?.stack,
-          userId,
-          clerkError: userError?.clerkError || 'none',
-        });
-
-        // If it's a duplicate key error (race condition), try to find it again
-        if (userError?.code === 11000) {
-          console.log('Duplicate key error, trying to find user again...');
-          user = await User.findOne({ clerkId: userId });
-          if (user) {
-            console.log('Found user after duplicate key error');
-          } else {
-            return res.status(500).json({
-              error: 'Failed to create user',
-              details: 'Duplicate key error but user not found'
-            });
-          }
-        } else {
-          return res.status(500).json({
-            error: 'Failed to create user',
-            details: userError?.message || 'Unknown error creating user'
-          });
-        }
-      }
-    }
-
-    // Check if token exists and is still valid
-    const now = new Date();
-    if (user.streamToken && user.streamTokenExpiry && user.streamTokenExpiry > now) {
-      return res.json({ token: user.streamToken });
-    }
-
-    // Generate new token
-    try {
-      const streamClient = new StreamClient(STREAM_API_KEY, STREAM_API_SECRET);
-      const expirationTime = Math.floor(Date.now() / 1000) + 3600; // 1 hour
-      const issuedAt = Math.floor(Date.now() / 1000) - 60;
-      const token = streamClient.createToken(userId, expirationTime, issuedAt);
-
-      if (!token || typeof token !== 'string') {
-        throw new Error('Stream client returned invalid token');
-      }
-
-      // Store token in MongoDB
-      user.streamToken = token;
-      user.streamTokenExpiry = new Date(expirationTime * 1000);
-      await user.save();
-
-      return res.json({ token });
-    } catch (tokenError: any) {
-      console.error('Error generating Stream token:', {
-        error: tokenError?.message,
-        stack: tokenError?.stack,
-        userId,
-      });
+    if (!token || typeof token !== 'string') {
+      console.error('Stream client returned invalid token');
       return res.status(500).json({
         error: 'Failed to generate Stream token',
-        details: tokenError?.message || 'Unknown error during token generation'
+        details: 'Stream SDK returned an invalid token'
       });
     }
+
+    // Try to cache in MongoDB, but don't fail if it doesn't work
+    // This is a background operation that shouldn't block the response
+    try {
+      const { User } = await import('../models/User');
+      let user = await User.findOne({ clerkId: userId });
+
+      if (user) {
+        // Update existing user with new token
+        user.streamToken = token;
+        user.streamTokenExpiry = new Date(expirationTime * 1000);
+        await user.save();
+      } else {
+        // Try to create user in background (non-blocking)
+        try {
+          const { clerkClient } = await import('../config/clerk');
+          const clerkUser = await clerkClient.users.getUser(userId);
+
+          if (clerkUser) {
+            const newUser = new User({
+              clerkId: userId,
+              email: clerkUser.emailAddresses[0]?.emailAddress || `${userId}@no-email.com`,
+              username: clerkUser.username || undefined,
+              firstName: clerkUser.firstName || undefined,
+              lastName: clerkUser.lastName || undefined,
+              imageUrl: clerkUser.imageUrl || undefined,
+              streamToken: token,
+              streamTokenExpiry: new Date(expirationTime * 1000),
+            });
+            await newUser.save();
+            console.log('Created user in MongoDB:', userId);
+          }
+        } catch (userCreateError: any) {
+          // Log but don't fail - user creation is optional
+          console.warn('Could not create user in MongoDB (non-blocking):', userCreateError?.message);
+        }
+      }
+    } catch (dbError: any) {
+      // Log but don't fail - MongoDB caching is optional
+      console.warn('MongoDB operation failed (non-blocking):', dbError?.message);
+    }
+
+    // Always return the token if we got this far
+    return res.json({ token });
   } catch (error: any) {
     console.error('Unexpected error in Stream token generation:', {
       error: error?.message,
