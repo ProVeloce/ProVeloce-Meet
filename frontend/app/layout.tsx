@@ -1,7 +1,6 @@
 import { ReactNode } from "react";
 import type { Metadata } from "next";
 import Script from "next/script";
-import { ClerkProvider } from "@clerk/nextjs";
 import { Roboto } from "next/font/google";
 
 import "@stream-io/video-react-sdk/dist/css/styles.css";
@@ -10,6 +9,7 @@ import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
 import AuthHeader from "@/components/AuthHeader";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import ClerkProviderClient from "@/components/ClerkProviderClient";
 
 // Use Roboto font (Google's standard font, similar to Google Sans)
 const roboto = Roboto({ 
@@ -86,41 +86,22 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: Readonly<{ children: ReactNode }>) {
-  // Determine if we're running on localhost based on environment variables
-  // For runtime detection, we'll use a client-side script
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
-  const isLocalhost = !baseUrl || baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1');
-  
-  // Check if domain should be explicitly disabled
-  const disableClerkDomain = process.env.NEXT_PUBLIC_DISABLE_CLERK_DOMAIN === 'true';
-  
-  // Only use custom domain when:
-  // 1. Not explicitly disabled
-  // 2. Not on localhost (based on env var)
-  // 3. In production environment
-  // Note: For runtime localhost detection, set NEXT_PUBLIC_DISABLE_CLERK_DOMAIN=true
-  const shouldUseCustomDomain = !disableClerkDomain && !isLocalhost && process.env.NODE_ENV === 'production';
-  const clerkDomain = shouldUseCustomDomain
-    ? (process.env.NEXT_PUBLIC_CLERK_DOMAIN || 'clerk.meet.proveloce.com')
-    : undefined;
+  const clerkAppearance = {
+    layout: {
+      socialButtonsVariant: "iconButton" as const,
+      logoImageUrl: "/icons/logo.jpeg",
+    },
+    variables: {
+      colorText: "#202124",
+      colorPrimary: "#1A73E8",
+      colorBackground: "#FFFFFF",
+      colorInputBackground: "#F8F9FA",
+      colorInputText: "#202124",
+    },
+  };
 
   return (
-    <ClerkProvider
-      {...(clerkDomain ? { domain: clerkDomain } : {})}
-      appearance={{
-        layout: {
-          socialButtonsVariant: "iconButton",
-          logoImageUrl: "/icons/logo.jpeg",
-        },
-        variables: {
-          colorText: "#202124",
-          colorPrimary: "#1A73E8",
-          colorBackground: "#FFFFFF",
-          colorInputBackground: "#F8F9FA",
-          colorInputText: "#202124",
-        },
-      }}
-    >
+    <ClerkProviderClient appearance={clerkAppearance}>
       <html lang="en">
         <body className={`${roboto.variable} ${roboto.className} bg-light-2 text-text-primary`}>
           {/* Define __pcPlatform before copilot script loads to prevent "PC plat undefined" error */}
@@ -169,6 +150,6 @@ export default function RootLayout({
           </ErrorBoundary>
         </body>
       </html>
-    </ClerkProvider>
+    </ClerkProviderClient>
   );
 }
