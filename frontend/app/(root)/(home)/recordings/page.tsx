@@ -24,7 +24,7 @@ const RecordingsPage = () => {
 
       setIsLoading(true);
       try {
-        const token = await getToken();
+        const token = await getToken({ template: "meet" });
         if (!token) return;
 
         const hostRecordings = await recordingApi.getHostRecordings(user.id, token);

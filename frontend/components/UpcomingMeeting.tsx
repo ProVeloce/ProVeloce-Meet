@@ -18,7 +18,7 @@ const UpcomingMeeting = () => {
     }
 
     try {
-      const token = await getToken();
+      const token = await getToken({ template: "meet" });
       if (!token) return;
 
       const meetings = await meetingApi.getMeetings(token, 'scheduled');

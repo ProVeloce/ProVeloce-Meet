@@ -51,7 +51,7 @@ const MeetingPage = () => {
         if (!hasTrackedJoin || !id || !user?.id) return;
         
         try {
-          const token = await getToken();
+          const token = await getToken({ template: "meet" });
           if (!token) return;
 
           const meetingId = Array.isArray(id) ? id[0] : id;

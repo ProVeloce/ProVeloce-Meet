@@ -29,9 +29,8 @@ const StreamVideoProvider = ({ children }: { children: ReactNode }) => {
 
     const initializeClient = async () => {
       try {
-        // Get Clerk session token - this returns a JWT that can be verified by the backend
-        // getToken() without options returns the default session token
-        const clerkToken = await getToken();
+        // Get Clerk session token with "meet" template to include correct audience claim
+        const clerkToken = await getToken({ template: "meet" });
         
         if (!clerkToken) {
           console.warn('No Clerk token available, user might not be authenticated');
@@ -41,8 +40,8 @@ const StreamVideoProvider = ({ children }: { children: ReactNode }) => {
         // Create token provider that fetches from backend
         const tokenProvider = async () => {
           try {
-            // Get a fresh token each time
-            const freshToken = await getToken();
+            // Get a fresh token each time with "meet" template
+            const freshToken = await getToken({ template: "meet" });
             if (!freshToken) {
               throw new Error('Failed to get authentication token');
             }

@@ -1,5 +1,6 @@
 import { ReactNode } from "react";
 import type { Metadata } from "next";
+import Script from "next/script";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Roboto } from "next/font/google";
 
@@ -85,8 +86,26 @@ export const metadata: Metadata = {
 export default function RootLayout({
   children,
 }: Readonly<{ children: ReactNode }>) {
+  // Determine if we're running on localhost
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || '';
+  const isLocalhost = !baseUrl || baseUrl.includes('localhost') || baseUrl.includes('127.0.0.1');
+  
+  // Check if domain should be explicitly disabled
+  const disableClerkDomain = process.env.NEXT_PUBLIC_DISABLE_CLERK_DOMAIN === 'true';
+  
+  // Only use custom domain when:
+  // 1. Not explicitly disabled
+  // 2. Not on localhost (localhost requires development keys or explicit disable)
+  // 3. In production environment
+  // For localhost with production keys, you must set NEXT_PUBLIC_DISABLE_CLERK_DOMAIN=true
+  const shouldUseCustomDomain = !disableClerkDomain && !isLocalhost && process.env.NODE_ENV === 'production';
+  const clerkDomain = shouldUseCustomDomain
+    ? (process.env.NEXT_PUBLIC_CLERK_DOMAIN || 'clerk.meet.proveloce.com')
+    : undefined;
+
   return (
     <ClerkProvider
+      {...(clerkDomain ? { domain: clerkDomain } : {})}
       appearance={{
         layout: {
           socialButtonsVariant: "iconButton",
@@ -103,6 +122,14 @@ export default function RootLayout({
     >
       <html lang="en">
         <body className={`${roboto.variable} ${roboto.className} bg-light-2 text-text-primary`}>
+          {/* Define __pcPlatform before copilot script loads to prevent "PC plat undefined" error */}
+          <Script
+            id="pc-platform-init"
+            strategy="beforeInteractive"
+            dangerouslySetInnerHTML={{
+              __html: `window.__pcPlatform = navigator.userAgent || "web";`,
+            }}
+          />
           <ErrorBoundary>
             <AuthHeader />
             <Toaster />

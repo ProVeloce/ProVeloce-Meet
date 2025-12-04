@@ -61,7 +61,7 @@ const MeetingTypeList = () => {
     setIsCreatingInstant(true);
 
     try {
-      const token = await getToken();
+      const token = await getToken({ template: "meet" });
       if (!token) {
         toast({
           title: "Authentication required",
@@ -123,7 +123,7 @@ const MeetingTypeList = () => {
     }
 
     try {
-      const token = await getToken();
+      const token = await getToken({ template: "meet" });
       if (!token) {
         toast({
           title: "Authentication required",
@@ -281,7 +281,7 @@ const MeetingTypeList = () => {
               return;
             }
 
-            const token = await getToken();
+            const token = await getToken({ template: "meet" });
             if (!token) {
               toast({ title: 'Authentication required' });
               return;

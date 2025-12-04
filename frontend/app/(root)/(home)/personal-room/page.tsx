@@ -52,7 +52,7 @@ const PersonalRoom = () => {
     setIsStarting(true);
 
     try {
-      const token = await getToken();
+      const token = await getToken({ template: "meet" });
       if (!token) {
         toast({
           title: "Authentication required",

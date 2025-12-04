@@ -69,7 +69,7 @@ const MeetingRoom = () => {
       if (!call?.id || !user?.id || callingState !== CallingState.JOINED) return;
 
       try {
-        const token = await getToken();
+        const token = await getToken({ template: "meet" });
         if (!token) return;
 
         const meetingId = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -104,7 +104,7 @@ const MeetingRoom = () => {
         if (!hasTrackedJoin || !call?.id || !user?.id) return;
         
         try {
-          const token = await getToken();
+          const token = await getToken({ template: "meet" });
           if (!token) return;
 
           const meetingId = Array.isArray(params.id) ? params.id[0] : params.id;
@@ -310,7 +310,7 @@ const MeetingRoom = () => {
             // Track leave before navigating
             if (hasTrackedJoin && meeting && user?.id) {
               try {
-                const token = await getToken();
+                const token = await getToken({ template: "meet" });
                 if (token) {
                   await participantApi.leaveMeeting(meeting.streamCallId, token);
                 }

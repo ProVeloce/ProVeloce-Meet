@@ -15,7 +15,7 @@ export const useGetCalls = () => {
       setIsLoading(true);
 
       try {
-        const token = await getToken();
+        const token = await getToken({ template: "meet" });
         if (!token) return;
 
         const allMeetings = await meetingApi.getMeetings(token);

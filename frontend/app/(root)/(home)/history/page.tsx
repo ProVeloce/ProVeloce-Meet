@@ -29,7 +29,7 @@ const HistoryPage = () => {
 
       setIsLoading(true);
       try {
-        const token = await getToken();
+        const token = await getToken({ template: "meet" });
         if (!token) return;
 
         const userHistory = await meetingHistoryApi.getUserHistory(user.id, token);

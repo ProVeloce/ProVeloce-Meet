@@ -27,7 +27,7 @@ const MeetingChat = ({ meetingId, isOpen, onClose }: MeetingChatProps) => {
   // Fetch messages
   const fetchMessages = async () => {
     try {
-      const token = await getToken();
+      const token = await getToken({ template: "meet" });
       if (!token) return;
 
       const fetchedMessages = await chatApi.getMessages(meetingId, token);
@@ -43,7 +43,7 @@ const MeetingChat = ({ meetingId, isOpen, onClose }: MeetingChatProps) => {
 
     setIsSending(true);
     try {
-      const token = await getToken();
+      const token = await getToken({ template: "meet" });
       if (!token || !user) return;
 
       const sentMessage = await chatApi.sendMessage(meetingId, newMessage.trim(), token);

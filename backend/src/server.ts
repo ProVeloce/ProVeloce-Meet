@@ -49,6 +49,13 @@ app.use(cors({
   },
   credentials: true,
 }));
+
+// Middleware to enable iframe storage access
+app.use((req, res, next) => {
+  res.setHeader('Permissions-Policy', 'storage-access=(self)');
+  next();
+});
+
 app.use(express.json());
 
 // Connect to MongoDB
@@ -68,9 +75,55 @@ app.use('/api/recordings', recordingRoutes);
 app.use('/api/meeting-history', meetingHistoryRoutes);
 app.use('/api/webhooks', webhookRoutes);
 
+// Root endpoint
+app.get('/', (req, res) => {
+  res.json({ status: 'Proveloce Meet Backend Running' });
+});
+
+// Tracking/analytics endpoint (JSONP support for cross-origin requests)
+app.get('/hybridaction/zybTrackerStatisticsAction', (req, res) => {
+  try {
+    const data = req.query.data || null;
+    const callback = req.query.__callback__ || req.query.callback;
+    
+    const responseData = {
+      success: true,
+      received: data
+    };
+    
+    // If callback is provided, return JSONP response
+    if (callback && typeof callback === 'string') {
+      // Sanitize callback name to prevent XSS
+      const sanitizedCallback = callback.replace(/[^a-zA-Z0-9_.]/g, '');
+      res.setHeader('Content-Type', 'application/javascript');
+      res.send(`${sanitizedCallback}(${JSON.stringify(responseData)})`);
+    } else {
+      // No callback, return normal JSON response
+      res.json(responseData);
+    }
+  } catch (error) {
+    console.error('Error handling tracking request:', error);
+    const errorResponse = { success: false, error: 'Internal server error' };
+    const callback = req.query.__callback__ || req.query.callback;
+    
+    if (callback && typeof callback === 'string') {
+      const sanitizedCallback = callback.replace(/[^a-zA-Z0-9_.]/g, '');
+      res.setHeader('Content-Type', 'application/javascript');
+      res.status(500).send(`${sanitizedCallback}(${JSON.stringify(errorResponse)})`);
+    } else {
+      res.status(500).json(errorResponse);
+    }
+  }
+});
+
 // Health check
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', message: 'ProVeloce Meet Backend API is running' });
+});
+
+// Handle Chrome DevTools well-known endpoint to prevent 404 errors
+app.get('/.well-known/appspecific/com.chrome.devtools.json', (req, res) => {
+  res.status(204).send(); // No Content - satisfies DevTools request
 });
 
 app.listen(PORT, () => {

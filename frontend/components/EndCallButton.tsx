@@ -39,7 +39,7 @@ const EndCallButton = () => {
     
     setIsEnding(true);
     try {
-      const token = await getToken();
+      const token = await getToken({ template: "meet" });
       const meetingId = Array.isArray(params.id) ? params.id[0] : params.id;
 
       // End the call

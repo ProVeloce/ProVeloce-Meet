@@ -15,7 +15,7 @@ export const useGetCallById = (id: string | string[]) => {
     
     const loadMeeting = async () => {
       try {
-        const token = await getToken();
+        const token = await getToken({ template: "meet" });
         if (!token) {
           setIsCallLoading(false);
           return;

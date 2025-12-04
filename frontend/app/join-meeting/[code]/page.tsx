@@ -32,7 +32,7 @@ export default function JoinMeetingPage() {
       }
 
       try {
-        const token = await getToken();
+        const token = await getToken({ template: "meet" });
         if (!token) {
           setError('Authentication required');
           setIsLoading(false);

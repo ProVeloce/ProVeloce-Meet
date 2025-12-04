@@ -19,6 +19,10 @@ export const verifyAuth = async (req: Request, res: Response, next: NextFunction
     const authHeader = req.headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      console.warn('Auth header missing or invalid:', {
+        hasHeader: !!authHeader,
+        headerStart: authHeader?.substring(0, 20) || 'none',
+      });
       return res.status(401).json({ error: 'Unauthorized: No token provided' });
     }
 
@@ -26,15 +30,27 @@ export const verifyAuth = async (req: Request, res: Response, next: NextFunction
     
     // Basic token format validation
     if (!token || token.trim().length === 0) {
-      console.error('Token is empty or invalid');
+      console.error('Token is empty or invalid', {
+        tokenLength: token?.length || 0,
+        tokenPreview: token?.substring(0, 50) || 'none',
+      });
       return res.status(401).json({ error: 'Unauthorized: Invalid token format' });
     }
     
     // Check if token looks like a JWT (has 3 parts separated by dots)
     const tokenParts = token.split('.');
     if (tokenParts.length !== 3) {
-      console.error('Token does not have JWT format (expected 3 parts, got', tokenParts.length, ')');
-      return res.status(401).json({ error: 'Unauthorized: Invalid token format' });
+      console.error('Token does not have JWT format', {
+        expectedParts: 3,
+        actualParts: tokenParts.length,
+        tokenLength: token.length,
+        tokenPreview: token.substring(0, 50) + '...',
+        firstPartLength: tokenParts[0]?.length || 0,
+      });
+      return res.status(401).json({ 
+        error: 'Unauthorized: Invalid token format',
+        details: `Token should have 3 parts separated by dots, but has ${tokenParts.length} parts`
+      });
     }
     
     try {
