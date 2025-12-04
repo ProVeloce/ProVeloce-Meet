@@ -2,6 +2,7 @@ import { ReactNode } from "react";
 import type { Metadata } from "next";
 import { ClerkProvider } from "@clerk/nextjs";
 import { Roboto } from "next/font/google";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import "@stream-io/video-react-sdk/dist/css/styles.css";
 import "react-datepicker/dist/react-datepicker.css";
@@ -108,6 +109,7 @@ export default function RootLayout({
             <Toaster />
             {children}
           </ErrorBoundary>
+          <SpeedInsights />
         </body>
       </html>
     </ClerkProvider>
