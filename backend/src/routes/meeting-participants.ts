@@ -10,7 +10,7 @@ const router = Router();
 // Helper function to get user display name
 const getUserDisplayName = (user: any): string => {
   if (user.firstName) {
-    return user.lastName 
+    return user.lastName
       ? `${user.firstName} ${user.lastName}`.trim()
       : user.firstName;
   }
@@ -38,17 +38,47 @@ router.post('/:meetingId/join', verifyAuth, async (req: Request, res: Response) 
       return res.status(404).json({ error: 'Meeting not found' });
     }
 
-    // Get user info
-    const user = await User.findOne({ clerkId: userId }).session(session);
+    // Get user info - auto-create if not found
+    let user = await User.findOne({ clerkId: userId }).session(session);
     if (!user) {
-      await session.abortTransaction();
-      return res.status(404).json({ error: 'User not found' });
+      // Try to create user from Clerk
+      try {
+        const { clerkClient } = await import('../config/clerk');
+        const clerkUser = await clerkClient.users.getUser(userId);
+
+        if (clerkUser) {
+          user = new User({
+            clerkId: userId,
+            email: clerkUser.emailAddresses[0]?.emailAddress || `${userId}@no-email.com`,
+            username: clerkUser.username || undefined,
+            firstName: clerkUser.firstName || undefined,
+            lastName: clerkUser.lastName || undefined,
+            imageUrl: clerkUser.imageUrl || undefined,
+          });
+          await user.save({ session });
+          console.log('Auto-created user in participant join:', userId);
+        }
+      } catch (userCreateError: any) {
+        console.warn('Could not create user in participant join:', userCreateError?.message);
+      }
+    }
+
+    // If still no user, create a minimal placeholder to avoid blocking
+    if (!user) {
+      user = {
+        clerkId: userId,
+        firstName: 'User',
+        lastName: '',
+        username: undefined,
+        email: undefined,
+        imageUrl: undefined,
+      } as any;
     }
 
     // Check if participant already exists (shouldn't happen due to unique constraint, but handle gracefully)
-    let participant = await MeetingParticipant.findOne({ 
-      meetingId, 
-      userId 
+    let participant = await MeetingParticipant.findOne({
+      meetingId,
+      userId
     }).session(session);
 
     if (participant) {
@@ -112,14 +142,14 @@ router.post('/:meetingId/join', verifyAuth, async (req: Request, res: Response) 
   } catch (error: any) {
     await session.abortTransaction();
     console.error('Error tracking participant join:', error);
-    
+
     // Handle duplicate key error gracefully
     if (error.code === 11000) {
       // Participant already exists, fetch and return it
       try {
-        const participant = await MeetingParticipant.findOne({ 
-          meetingId: req.params.meetingId, 
-          userId: req.userId 
+        const participant = await MeetingParticipant.findOne({
+          meetingId: req.params.meetingId,
+          userId: req.userId
         });
         if (participant) {
           return res.json(participant);
@@ -128,7 +158,7 @@ router.post('/:meetingId/join', verifyAuth, async (req: Request, res: Response) 
         // Ignore fetch error
       }
     }
-    
+
     res.status(500).json({ error: 'Failed to track participant join', details: error.message });
   } finally {
     session.endSession();
@@ -150,9 +180,9 @@ router.post('/:meetingId/leave', verifyAuth, async (req: Request, res: Response)
     }
 
     // Find participant
-    const participant = await MeetingParticipant.findOne({ 
-      meetingId, 
-      userId 
+    const participant = await MeetingParticipant.findOne({
+      meetingId,
+      userId
     }).session(session);
 
     if (!participant) {
@@ -190,18 +220,18 @@ router.post('/:meetingId/leave', verifyAuth, async (req: Request, res: Response)
 
     // Find meeting to update status
     const meeting = await Meeting.findOne({ streamCallId: meetingId }).session(session);
-    
+
     if (activeParticipants === 0 && meeting && meeting.status === 'ongoing') {
       // All participants have left - end the meeting
       meeting.endTime = new Date();
       meeting.status = 'ended';
-      
+
       // Calculate total meeting duration
       if (meeting.startTime) {
         const durationMs = meeting.endTime.getTime() - meeting.startTime.getTime();
         meeting.duration = Math.floor(durationMs / 1000); // Duration in seconds
       }
-      
+
       await meeting.save({ session });
     }
 
