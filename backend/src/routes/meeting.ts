@@ -23,13 +23,41 @@ router.post('/', verifyAuth, async (req: Request, res: Response) => {
 
     // Get user info
     const user = await User.findOne({ clerkId: userId });
-    if (!user) {
+
+    // If user doesn't exist in MongoDB but is authenticated via Clerk, create them
+    // This handles cases where the user hasn't hit the /stream/token endpoint yet
+    let currentUser = user;
+
+    if (!currentUser) {
+      try {
+        const { clerkClient } = await import('../config/clerk');
+        const clerkUser = await clerkClient.users.getUser(userId);
+
+        if (clerkUser) {
+          currentUser = new User({
+            clerkId: userId,
+            email: clerkUser.emailAddresses[0]?.emailAddress || `${userId}@no-email.com`,
+            username: clerkUser.username || undefined,
+            firstName: clerkUser.firstName || undefined,
+            lastName: clerkUser.lastName || undefined,
+            imageUrl: clerkUser.imageUrl || undefined,
+          });
+          await currentUser.save();
+          console.log('Auto-created user in meeting route:', userId);
+        }
+      } catch (err) {
+        console.error('Failed to auto-create user in meeting route:', err);
+        // Fall through to 404 if creation fails
+      }
+    }
+
+    if (!currentUser) {
       return res.status(404).json({ error: 'User not found' });
     }
 
     // Generate Stream call ID
     const streamCallId = uuidv4();
-    
+
     // Generate room code in XXX-XXXX-XXX format
     let roomCode = generateRoomId();
     // Ensure uniqueness
@@ -38,25 +66,25 @@ router.post('/', verifyAuth, async (req: Request, res: Response) => {
       roomCode = generateRoomId();
       existingMeeting = await Meeting.findOne({ roomCode });
     }
-    
+
     const meetingLink = `${process.env.FRONTEND_URL || 'http://localhost:3000'}/meeting/${streamCallId}`;
 
     // Note: Stream.io calls are created on-demand when users join via the frontend
     // No need to pre-create them on the backend
 
     // Get user's display name (firstName + lastName or username or email)
-    const displayName = user.firstName 
-      ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ''}`
-      : (user.username || user.email?.split('@')[0] || 'User');
-    
+    const displayName = currentUser.firstName
+      ? `${currentUser.firstName}${currentUser.lastName ? ` ${currentUser.lastName}` : ''}`
+      : (currentUser.username || currentUser.email?.split('@')[0] || 'User');
+
     // For personal rooms, format title as "{Name}'s Meeting Room"
-    const meetingTitle = type === 'personal' 
+    const meetingTitle = type === 'personal'
       ? `${displayName}'s Meeting Room`
       : title;
 
     // Generate SEO metadata
     const seoTitle = `${meetingTitle} by ${displayName} - ProVeloce Meet`;
-    const seoDescription = description || 
+    const seoDescription = description ||
       `Join ${meetingTitle}${scheduledTime ? ` scheduled for ${new Date(scheduledTime).toLocaleDateString()}` : ''}. ${type.charAt(0).toUpperCase() + type.slice(1)} video meeting on ProVeloce Meet - secure online meeting platform.`;
     const seoKeywords = [
       'video meeting',
@@ -76,7 +104,7 @@ router.post('/', verifyAuth, async (req: Request, res: Response) => {
       type,
       hostId: userId,
       hostName: displayName,
-      hostImageUrl: user.imageUrl,
+      hostImageUrl: currentUser.imageUrl,
       scheduledTime: scheduledTime ? new Date(scheduledTime) : undefined,
       participants: [userId, ...participants],
       status: (type === 'instant' || type === 'personal') ? 'ongoing' : 'scheduled',
@@ -139,7 +167,7 @@ router.get('/code/:code', async (req: Request, res: Response) => {
   try {
     const { code } = req.params;
     const formattedCode = code.toUpperCase().replace(/-/g, '').replace(/(.{3})(.{4})(.{3})/, '$1-$2-$3');
-    
+
     const meeting = await Meeting.findOne({
       roomCode: formattedCode,
     });
