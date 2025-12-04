@@ -1,6 +1,6 @@
 import { Router, Request, Response, NextFunction } from 'express';
 import { clerkClient } from '../config/clerk';
-import { verifyClerkToken } from '../utils/jwt-verifier';
+// import { verifyClerkToken } from '../utils/jwt-verifier';
 
 const router = Router();
 
@@ -17,7 +17,7 @@ declare global {
 export const verifyAuth = async (req: Request, res: Response, next: NextFunction) => {
   try {
     const authHeader = req.headers.authorization;
-    
+
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       console.warn('Auth header missing or invalid:', {
         hasHeader: !!authHeader,
@@ -27,7 +27,7 @@ export const verifyAuth = async (req: Request, res: Response, next: NextFunction
     }
 
     const token = authHeader.split(' ')[1];
-    
+
     // Basic token format validation
     if (!token || token.trim().length === 0) {
       console.error('Token is empty or invalid', {
@@ -36,12 +36,12 @@ export const verifyAuth = async (req: Request, res: Response, next: NextFunction
         authHeaderLength: authHeader?.length || 0,
         authHeaderPreview: authHeader?.substring(0, 100) || 'none',
       });
-      return res.status(401).json({ 
+      return res.status(401).json({
         error: 'Unauthorized: Invalid token format',
         details: 'Token is empty or missing from Authorization header'
       });
     }
-    
+
     // Check if token looks like a JWT (has 3 parts separated by dots)
     const tokenParts = token.split('.');
     if (tokenParts.length !== 3) {
@@ -55,16 +55,17 @@ export const verifyAuth = async (req: Request, res: Response, next: NextFunction
         thirdPartLength: tokenParts[2]?.length || 0,
         tokenStartsWith: token.substring(0, 10),
       });
-      return res.status(401).json({ 
+      return res.status(401).json({
         error: 'Unauthorized: Invalid token format',
         details: `Token should have 3 parts separated by dots (header.payload.signature), but has ${tokenParts.length} parts. Token length: ${token.length}`
       });
     }
-    
+
     try {
-      // Verify the JWT token using jsonwebtoken with Clerk's public key
-      const decoded = await verifyClerkToken(token);
-      
+      // Verify the JWT token using Clerk's official SDK
+      // This handles key rotation, issuer validation, and other checks automatically
+      const decoded = await clerkClient.verifyToken(token);
+
       if (!decoded || !decoded.sub) {
         console.error('Token verification failed: No sub in decoded token', decoded);
         return res.status(401).json({ error: 'Unauthorized: Invalid token - no user ID found' });
@@ -81,18 +82,18 @@ export const verifyAuth = async (req: Request, res: Response, next: NextFunction
         tokenLength: token?.length || 0,
         tokenPreview: token?.substring(0, 30) + '...' || 'no token',
       });
-      
+
       // Provide more specific error messages
       let errorMessage = 'Unauthorized: Token verification failed';
-      if (verifyError.message?.includes('expired') || verifyError.name === 'TokenExpiredError') {
+      if (verifyError.message?.includes('expired') || verifyError.code === 'token_expired') {
         errorMessage = 'Unauthorized: Token has expired';
-      } else if (verifyError.message?.includes('invalid') || verifyError.name === 'JsonWebTokenError') {
+      } else if (verifyError.message?.includes('invalid') || verifyError.code === 'token_invalid') {
         errorMessage = 'Unauthorized: Invalid token format';
-      } else if (verifyError.name === 'NotBeforeError') {
+      } else if (verifyError.code === 'token_not_active_yet') {
         errorMessage = 'Unauthorized: Token not yet valid';
       }
-      
-      return res.status(401).json({ 
+
+      return res.status(401).json({
         error: errorMessage,
         details: verifyError.message || 'Unknown verification error'
       });
@@ -111,11 +112,11 @@ router.get('/me', verifyAuth, async (req, res) => {
       return res.status(401).json({ error: 'User ID not found' });
     }
     const clerkUser = await clerkClient.users.getUser(userId);
-    
+
     // Sync user with MongoDB
     const { User } = await import('../models/User');
     let user = await User.findOne({ clerkId: userId });
-    
+
     if (!user) {
       // Create new user in MongoDB
       user = new User({
@@ -136,7 +137,7 @@ router.get('/me', verifyAuth, async (req, res) => {
       user.imageUrl = clerkUser.imageUrl || user.imageUrl;
       await user.save();
     }
-    
+
     res.json({
       id: user.clerkId,
       username: user.username,
