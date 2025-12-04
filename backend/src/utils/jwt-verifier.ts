@@ -65,6 +65,12 @@ function getJwksClient() {
   if (!_jwks) {
     const jwksUrl = getJwksUrl();
     
+    console.log('Initializing JWKS client:', {
+      jwksUrl,
+      issuer: getClerkDomain(),
+      audience: process.env.CLERK_JWT_AUDIENCE || 'not set',
+    });
+    
     _jwks = jwksClient({
       jwksUri: jwksUrl,
       cache: true,
@@ -104,12 +110,34 @@ export function verifyClerkToken(token: string): Promise<any> {
       verifyOptions.audience = process.env.CLERK_JWT_AUDIENCE;
     }
     
+    // Decode token without verification first to see what's in it (for debugging)
+    let decodedUnverified: any = null;
+    try {
+      decodedUnverified = jwt.decode(token, { complete: true });
+    } catch (e) {
+      // Ignore decode errors
+    }
+    
     jwt.verify(
       token,
       getKey,
       verifyOptions,
       (err, decoded) => {
         if (err) {
+          // Enhanced error logging
+          console.error('JWT Verification Error:', {
+            errorName: err.name,
+            errorMessage: err.message,
+            expectedIssuer: clerkDomain,
+            expectedAudience: process.env.CLERK_JWT_AUDIENCE || 'not set',
+            tokenIssuer: decodedUnverified?.payload?.iss,
+            tokenAudience: decodedUnverified?.payload?.aud,
+            tokenExpiry: decodedUnverified?.payload?.exp 
+              ? new Date(decodedUnverified.payload.exp * 1000).toISOString() 
+              : 'not set',
+            tokenAlgorithm: decodedUnverified?.header?.alg,
+            tokenKid: decodedUnverified?.header?.kid,
+          });
           reject(err);
         } else {
           resolve(decoded);

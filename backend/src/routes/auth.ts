@@ -24,6 +24,19 @@ export const verifyAuth = async (req: Request, res: Response, next: NextFunction
 
     const token = authHeader.split(' ')[1];
     
+    // Basic token format validation
+    if (!token || token.trim().length === 0) {
+      console.error('Token is empty or invalid');
+      return res.status(401).json({ error: 'Unauthorized: Invalid token format' });
+    }
+    
+    // Check if token looks like a JWT (has 3 parts separated by dots)
+    const tokenParts = token.split('.');
+    if (tokenParts.length !== 3) {
+      console.error('Token does not have JWT format (expected 3 parts, got', tokenParts.length, ')');
+      return res.status(401).json({ error: 'Unauthorized: Invalid token format' });
+    }
+    
     try {
       // Verify the JWT token using jsonwebtoken with Clerk's public key
       const decoded = await verifyClerkToken(token);
