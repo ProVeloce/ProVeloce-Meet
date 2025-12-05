@@ -96,9 +96,6 @@ const WorkspaceSchema = new Schema<IWorkspace>({
     updatedAt: { type: Date, default: Date.now },
 });
 
-// Index for slug lookups
-WorkspaceSchema.index({ slug: 1 }, { unique: true });
-
 export const Workspace = mongoose.models.Workspace ||
     mongoose.model<IWorkspace>('Workspace', WorkspaceSchema);
 

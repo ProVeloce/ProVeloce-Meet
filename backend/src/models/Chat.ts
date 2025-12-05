@@ -19,7 +19,6 @@ const ChatSchema = new Schema<IChat>(
     meetingId: {
       type: String,
       required: true,
-      index: true,
     },
     userId: {
       type: String,
@@ -33,7 +32,7 @@ const ChatSchema = new Schema<IChat>(
     userImageUrl: String,
     message: {
       type: String,
-      required: function(this: IChat) {
+      required: function (this: IChat) {
         // Either message or encryptedMessage must be present
         return !!(this.message || this.encryptedMessage);
       },

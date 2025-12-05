@@ -14,12 +14,10 @@ const HistorySchema = new Schema<IHistory>(
     userId: {
       type: String,
       required: true,
-      index: true,
     },
     meetingId: {
       type: String,
       required: true,
-      index: true,
     },
     action: {
       type: String,

@@ -16,7 +16,7 @@ export interface ITranscriptChunk extends Document {
 }
 
 const TranscriptChunkSchema = new Schema<ITranscriptChunk>({
-    meetingId: { type: String, required: true, index: true },
+    meetingId: { type: String, required: true },
     speakerId: { type: String, required: true },
     speakerName: { type: String, required: true },
     startTime: { type: Number, required: true },
@@ -117,7 +117,7 @@ export interface IMeetingMemory extends Document {
 }
 
 const MeetingMemorySchema = new Schema<IMeetingMemory>({
-    meetingId: { type: String, required: true, index: true },
+    meetingId: { type: String, required: true },
     chunkId: { type: String, required: true },
     text: { type: String, required: true },
     embedding: [{ type: Number }],

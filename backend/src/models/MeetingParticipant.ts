@@ -18,12 +18,10 @@ const MeetingParticipantSchema = new Schema<IMeetingParticipant>(
     meetingId: {
       type: String,
       required: true,
-      index: true,
     },
     userId: {
       type: String,
       required: true,
-      index: true,
     },
     userName: {
       type: String,
@@ -34,14 +32,12 @@ const MeetingParticipantSchema = new Schema<IMeetingParticipant>(
       type: Date,
       required: true,
       default: Date.now,
-      index: true,
     },
     leftAt: Date,
     duration: Number, // Calculated: leftAt - joinedAt (in seconds)
     isHost: {
       type: Boolean,
       default: false,
-      index: true,
     },
   },
   {
@@ -56,6 +52,6 @@ MeetingParticipantSchema.index({ meetingId: 1, userId: 1 }, { unique: true });
 MeetingParticipantSchema.index({ userId: 1, joinedAt: -1 });
 MeetingParticipantSchema.index({ meetingId: 1, joinedAt: -1 });
 
-export const MeetingParticipant = mongoose.models.MeetingParticipant || 
+export const MeetingParticipant = mongoose.models.MeetingParticipant ||
   mongoose.model<IMeetingParticipant>('MeetingParticipant', MeetingParticipantSchema);
 
