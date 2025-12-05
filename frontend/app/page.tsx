@@ -1,37 +1,33 @@
 'use client';
 
-import { useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
-import { useRouter } from 'next/navigation';
 import LandingIntro from '@/components/LandingIntro';
 import Loader from '@/components/Loader';
 
+// This is the public landing page
+// Authenticated users will see this too, but they can navigate using the sidebar
+// The (root)/(home) layout provides the dashboard experience for authenticated users
 export default function RootPage() {
   const { isLoaded, isSignedIn } = useUser();
-  const router = useRouter();
 
-  useEffect(() => {
-    // Only redirect if we know the auth state and user is signed in
-    if (isLoaded && isSignedIn) {
-      router.push('/home');
-    }
-  }, [isLoaded, isSignedIn, router]);
-
-  // Show loader only while checking auth state
+  // Show loader while checking auth state
   if (!isLoaded) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-light-2">
+      <div className="min-h-screen flex items-center justify-center bg-bg-secondary">
         <Loader />
       </div>
     );
   }
 
-  // If signed in, show nothing (redirect will happen)
+  // If signed in, redirect to dashboard
   if (isSignedIn) {
+    // Use window.location for a full page redirect to the dashboard
+    if (typeof window !== 'undefined') {
+      window.location.href = '/upcoming';
+    }
     return null;
   }
 
   // Show landing intro for unauthenticated users
   return <LandingIntro />;
 }
-

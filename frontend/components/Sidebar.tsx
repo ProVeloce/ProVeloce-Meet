@@ -1,15 +1,16 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Calendar, Clock, Video, Plus } from 'lucide-react';
+import { Home, Calendar, Clock, Video, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
+// Routes matching the actual Next.js app structure: (root)/(home)/
 const navItems = [
-  { label: 'Home', route: '/home', icon: Home },
-  { label: 'Upcoming', route: '/home/upcoming', icon: Calendar },
-  { label: 'Previous', route: '/home/previous', icon: Clock },
-  { label: 'Recordings', route: '/home/recordings', icon: Video },
-  { label: 'Personal Room', route: '/home/personal-room', icon: Plus },
+  { label: 'Home', route: '/', icon: Home },
+  { label: 'Upcoming', route: '/upcoming', icon: Calendar },
+  { label: 'Previous', route: '/previous', icon: Clock },
+  { label: 'Recordings', route: '/recordings', icon: Video },
+  { label: 'Personal Room', route: '/personal-room', icon: User },
 ];
 
 const Sidebar = () => {
@@ -24,7 +25,7 @@ const Sidebar = () => {
       <nav className="flex flex-1 flex-col gap-1" aria-label="Main navigation">
         {navItems.map((item) => {
           const isActive = pathname === item.route ||
-            (item.route !== '/home' && pathname.startsWith(item.route));
+            (item.route !== '/' && pathname.startsWith(item.route));
           const Icon = item.icon;
 
           return (
