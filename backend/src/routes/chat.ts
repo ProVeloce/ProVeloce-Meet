@@ -2,8 +2,59 @@ import { Router, Request, Response } from 'express';
 import { verifyAuth } from './auth';
 import { Chat } from '../models/Chat';
 import { User } from '../models/User';
+import { clerkClient } from '../config/clerk';
 
 const router = Router();
+
+/**
+ * Get or create user from Clerk
+ * Prevents 404 "User not found" errors
+ */
+async function getOrCreateUser(userId: string) {
+  // Try to find existing user
+  let user = await User.findOne({ clerkId: userId });
+
+  if (user) {
+    return user;
+  }
+
+  // User not in DB - fetch from Clerk and create
+  try {
+    const clerkUser = await clerkClient.users.getUser(userId);
+
+    if (!clerkUser) {
+      return null;
+    }
+
+    user = new User({
+      clerkId: userId,
+      email: clerkUser.emailAddresses[0]?.emailAddress || `${userId}@unknown.com`,
+      username: clerkUser.username || undefined,
+      firstName: clerkUser.firstName || undefined,
+      lastName: clerkUser.lastName || undefined,
+      imageUrl: clerkUser.imageUrl || undefined,
+    });
+
+    await user.save();
+    console.log('[Chat] Auto-created user from Clerk:', userId);
+    return user;
+  } catch (error: any) {
+    console.error('[Chat] Failed to fetch/create user from Clerk:', error.message);
+    return null;
+  }
+}
+
+/**
+ * Get user display name
+ */
+function getUserDisplayName(user: any): string {
+  if (user.firstName) {
+    return user.lastName
+      ? `${user.firstName} ${user.lastName}`.trim()
+      : user.firstName;
+  }
+  return user.username || user.email?.split('@')[0] || 'User';
+}
 
 // Get chat messages for a meeting
 router.get('/:meetingId', verifyAuth, async (req: Request, res: Response) => {
@@ -18,12 +69,12 @@ router.get('/:meetingId', verifyAuth, async (req: Request, res: Response) => {
 
     res.json(messages.reverse()); // Return in chronological order
   } catch (error: any) {
-    console.error('Error fetching chat messages:', error);
-    res.status(500).json({ error: 'Failed to fetch chat messages', details: error.message });
+    console.error('[Chat] Error fetching messages:', error.message);
+    res.status(500).json({ error: 'Failed to fetch chat messages' });
   }
 });
 
-// Send a chat message (supports both plaintext and encrypted)
+// Send a chat message
 router.post('/:meetingId', verifyAuth, async (req: Request, res: Response) => {
   try {
     const userId = req.userId;
@@ -31,7 +82,7 @@ router.post('/:meetingId', verifyAuth, async (req: Request, res: Response) => {
     const { message, encryptedMessage, iv } = req.body;
 
     if (!userId) {
-      return res.status(401).json({ error: 'User ID not found' });
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
     // Support both encrypted and plaintext messages
@@ -39,31 +90,25 @@ router.post('/:meetingId', verifyAuth, async (req: Request, res: Response) => {
     const hasContent = !!(message?.trim() || encryptedMessage);
 
     if (!hasContent) {
-      return res.status(400).json({ error: 'Message or encrypted message is required' });
+      return res.status(400).json({ error: 'Message content is required' });
     }
 
-    // Get user info
-    const user = await User.findOne({ clerkId: userId });
+    // Get or create user (NEVER returns 404 for authenticated users)
+    const user = await getOrCreateUser(userId);
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      // This should only happen if Clerk user doesn't exist (very rare)
+      return res.status(500).json({
+        error: 'Failed to resolve user identity',
+        details: 'User could not be found or created. Please re-authenticate.'
+      });
     }
-
-    // Get user's full name (firstName + lastName or firstName only)
-    const getUserDisplayName = () => {
-      if (user.firstName) {
-        return user.lastName 
-          ? `${user.firstName} ${user.lastName}`.trim()
-          : user.firstName;
-      }
-      return user.username || user.email?.split('@')[0] || 'User';
-    };
 
     const chatMessage = new Chat({
       meetingId,
       userId,
-      userName: getUserDisplayName(),
+      userName: getUserDisplayName(user),
       userImageUrl: user.imageUrl,
-      message: isEncrypted ? '[Encrypted]' : message.trim(), // Store placeholder for encrypted
+      message: isEncrypted ? '[Encrypted]' : message.trim(),
       encryptedMessage: isEncrypted ? encryptedMessage : undefined,
       iv: isEncrypted ? iv : undefined,
       isEncrypted,
@@ -71,15 +116,14 @@ router.post('/:meetingId', verifyAuth, async (req: Request, res: Response) => {
     });
 
     await chatMessage.save();
-
     res.status(201).json(chatMessage);
   } catch (error: any) {
-    console.error('Error sending chat message:', error);
-    res.status(500).json({ error: 'Failed to send chat message', details: error.message });
+    console.error('[Chat] Error sending message:', error.message);
+    res.status(500).json({ error: 'Failed to send message' });
   }
 });
 
-// Send an encrypted chat message (E2EE)
+// Send encrypted chat message (E2EE)
 router.post('/:meetingId/encrypted', verifyAuth, async (req: Request, res: Response) => {
   try {
     const userId = req.userId;
@@ -87,35 +131,25 @@ router.post('/:meetingId/encrypted', verifyAuth, async (req: Request, res: Respo
     const { encryptedMessage, iv } = req.body;
 
     if (!userId) {
-      return res.status(401).json({ error: 'User ID not found' });
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
     if (!encryptedMessage || !iv) {
       return res.status(400).json({ error: 'Encrypted message and IV are required' });
     }
 
-    // Get user info
-    const user = await User.findOne({ clerkId: userId });
+    // Get or create user
+    const user = await getOrCreateUser(userId);
     if (!user) {
-      return res.status(404).json({ error: 'User not found' });
+      return res.status(500).json({ error: 'Failed to resolve user identity' });
     }
-
-    // Get user's full name
-    const getUserDisplayName = () => {
-      if (user.firstName) {
-        return user.lastName 
-          ? `${user.firstName} ${user.lastName}`.trim()
-          : user.firstName;
-      }
-      return user.username || user.email?.split('@')[0] || 'User';
-    };
 
     const chatMessage = new Chat({
       meetingId,
       userId,
-      userName: getUserDisplayName(),
+      userName: getUserDisplayName(user),
       userImageUrl: user.imageUrl,
-      message: '[Encrypted]', // Placeholder - actual content is encrypted
+      message: '[Encrypted]',
       encryptedMessage,
       iv,
       isEncrypted: true,
@@ -123,11 +157,10 @@ router.post('/:meetingId/encrypted', verifyAuth, async (req: Request, res: Respo
     });
 
     await chatMessage.save();
-
     res.status(201).json(chatMessage);
   } catch (error: any) {
-    console.error('Error sending encrypted chat message:', error);
-    res.status(500).json({ error: 'Failed to send encrypted chat message', details: error.message });
+    console.error('[Chat] Error sending encrypted message:', error.message);
+    res.status(500).json({ error: 'Failed to send encrypted message' });
   }
 });
 
@@ -138,7 +171,7 @@ router.delete('/:meetingId/:messageId', verifyAuth, async (req: Request, res: Re
     const { messageId } = req.params;
 
     if (!userId) {
-      return res.status(401).json({ error: 'User ID not found' });
+      return res.status(401).json({ error: 'Unauthorized' });
     }
 
     const message = await Chat.findById(messageId);
@@ -152,13 +185,11 @@ router.delete('/:meetingId/:messageId', verifyAuth, async (req: Request, res: Re
     }
 
     await Chat.deleteOne({ _id: messageId });
-
-    res.json({ message: 'Message deleted successfully' });
+    res.json({ message: 'Message deleted' });
   } catch (error: any) {
-    console.error('Error deleting chat message:', error);
-    res.status(500).json({ error: 'Failed to delete chat message', details: error.message });
+    console.error('[Chat] Error deleting message:', error.message);
+    res.status(500).json({ error: 'Failed to delete message' });
   }
 });
 
 export { router as chatRoutes };
-
