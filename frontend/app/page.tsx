@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useUser } from '@clerk/nextjs';
 import { useRouter } from 'next/navigation';
 import LandingIntro from '@/components/LandingIntro';
+import AuthHeader from '@/components/AuthHeader';
 import Loader from '@/components/Loader';
 
 // Public landing page - redirects authenticated users to Home
@@ -32,5 +33,10 @@ export default function RootPage() {
   }
 
   // Show landing intro for unauthenticated users
-  return <LandingIntro />;
+  return (
+    <>
+      <AuthHeader />
+      <LandingIntro />
+    </>
+  );
 }

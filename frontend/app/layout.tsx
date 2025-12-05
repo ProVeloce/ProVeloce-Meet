@@ -12,7 +12,7 @@ import ErrorBoundary from "@/components/ErrorBoundary";
 import ClerkProviderClient from "@/components/ClerkProviderClient";
 
 // Use Roboto font (Google's standard font, similar to Google Sans)
-const roboto = Roboto({ 
+const roboto = Roboto({
   subsets: ["latin"],
   weight: ["300", "400", "500", "700"],
   variable: "--font-roboto",
@@ -144,7 +144,6 @@ export default function RootLayout({
             }}
           />
           <ErrorBoundary>
-            <AuthHeader />
             <Toaster />
             {children}
           </ErrorBoundary>
