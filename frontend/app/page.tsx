@@ -6,14 +6,14 @@ import { useRouter } from 'next/navigation';
 import LandingIntro from '@/components/LandingIntro';
 import Loader from '@/components/Loader';
 
-// Public landing page - redirects authenticated users to dashboard
+// Public landing page - redirects authenticated users to Home
 export default function RootPage() {
   const { isLoaded, isSignedIn } = useUser();
   const router = useRouter();
 
   useEffect(() => {
     if (isLoaded && isSignedIn) {
-      router.push('/upcoming');
+      router.push('/home');
     }
   }, [isLoaded, isSignedIn, router]);
 

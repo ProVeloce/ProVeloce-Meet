@@ -4,8 +4,9 @@ import { usePathname } from 'next/navigation';
 import { Home, Calendar, Clock, Video, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-// Routes matching the actual Next.js app structure: (root)/(home)/
+// Routes matching the actual Next.js app structure
 const navItems = [
+  { label: 'Home', route: '/home', icon: Home },
   { label: 'Upcoming', route: '/upcoming', icon: Calendar },
   { label: 'Previous', route: '/previous', icon: Clock },
   { label: 'Recordings', route: '/recordings', icon: Video },
@@ -23,7 +24,8 @@ const Sidebar = () => {
     >
       <nav className="flex flex-1 flex-col gap-1" aria-label="Main navigation">
         {navItems.map((item) => {
-          const isActive = pathname === item.route || pathname.startsWith(`${item.route}/`);
+          const isActive = pathname === item.route ||
+            (item.route !== '/home' && pathname.startsWith(`${item.route}/`));
           const Icon = item.icon;
 
           return (
