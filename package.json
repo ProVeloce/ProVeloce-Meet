@@ -19,6 +19,7 @@
     "concurrently": "^8.2.2"
   },
   "dependencies": {
-    "framer-motion": "^12.23.24"
+    "framer-motion": "^12.23.24",
+    "ollama": "^0.6.3"
   }
 }

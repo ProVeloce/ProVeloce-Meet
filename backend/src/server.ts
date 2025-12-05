@@ -16,6 +16,8 @@ import { meetingParticipantRoutes } from './routes/meeting-participants';
 import { recordingRoutes } from './routes/recordings';
 import { meetingHistoryRoutes } from './routes/meeting-history';
 import { webhookRoutes } from './routes/webhooks';
+import { aiRoutes } from './routes/ai';
+import { workspaceRoutes } from './routes/workspace';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -31,10 +33,10 @@ app.use(cors({
     if (!origin) {
       return callback(null, true);
     }
-    
+
     // Normalize the origin by removing trailing slashes
     const normalizedOrigin = origin.replace(/\/+$/, '');
-    
+
     // Check if the normalized origin matches the normalized frontend URL
     if (normalizedOrigin === normalizedFrontendUrl) {
       callback(null, true);
@@ -74,6 +76,8 @@ app.use('/api/participants', meetingParticipantRoutes);
 app.use('/api/recordings', recordingRoutes);
 app.use('/api/meeting-history', meetingHistoryRoutes);
 app.use('/api/webhooks', webhookRoutes);
+app.use('/api/ai', aiRoutes);
+app.use('/api/workspaces', workspaceRoutes);
 
 // Root endpoint
 app.get('/', (req, res) => {
@@ -85,12 +89,12 @@ app.get('/hybridaction/zybTrackerStatisticsAction', (req, res) => {
   try {
     const data = req.query.data || null;
     const callback = req.query.__callback__ || req.query.callback;
-    
+
     const responseData = {
       success: true,
       received: data
     };
-    
+
     // If callback is provided, return JSONP response
     if (callback && typeof callback === 'string') {
       // Sanitize callback name to prevent XSS
@@ -105,7 +109,7 @@ app.get('/hybridaction/zybTrackerStatisticsAction', (req, res) => {
     console.error('Error handling tracking request:', error);
     const errorResponse = { success: false, error: 'Internal server error' };
     const callback = req.query.__callback__ || req.query.callback;
-    
+
     if (callback && typeof callback === 'string') {
       const sanitizedCallback = callback.replace(/[^a-zA-Z0-9_.]/g, '');
       res.setHeader('Content-Type', 'application/javascript');
