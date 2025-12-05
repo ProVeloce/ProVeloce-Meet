@@ -1,7 +1,7 @@
 'use client';
 
-import Image from 'next/image';
 import { cn } from '@/lib/utils';
+import { memo } from 'react';
 
 interface HomeCardProps {
   className?: string;
@@ -12,36 +12,37 @@ interface HomeCardProps {
   variant?: 'primary' | 'secondary';
 }
 
-const HomeCard = ({
+const HomeCard = memo(function HomeCard({
   className,
   icon,
   title,
   description,
   handleClick,
   variant = 'secondary'
-}: HomeCardProps) => {
+}: HomeCardProps) {
   return (
     <button
       className={cn(
-        "flex items-center gap-4 w-full p-4 rounded-lg text-left transition-colors",
+        "flex items-center gap-3 sm:gap-4 w-full p-3 sm:p-4 rounded-xl text-left transition-all touch-target no-select",
+        "active:scale-[0.98]",
         variant === 'primary'
-          ? "bg-google-blue text-white hover:bg-google-blue-hover"
-          : "bg-white border border-border-lighter hover:bg-bg-tertiary text-text-primary",
+          ? "bg-google-blue text-white hover:bg-google-blue-hover shadow-md"
+          : "bg-white border border-border-lighter hover:bg-bg-tertiary hover:shadow-sm text-text-primary",
         className
       )}
       onClick={handleClick}
     >
       <div className={cn(
-        "w-10 h-10 rounded-full flex items-center justify-center",
+        "w-10 h-10 sm:w-12 sm:h-12 rounded-full flex items-center justify-center flex-shrink-0",
         variant === 'primary' ? "bg-white/20" : "bg-bg-tertiary"
       )}>
         {icon}
       </div>
-      <div>
-        <h3 className="font-medium text-base">{title}</h3>
+      <div className="min-w-0 flex-1">
+        <h3 className="font-medium text-sm sm:text-base truncate">{title}</h3>
         {description && (
           <p className={cn(
-            "text-sm mt-0.5",
+            "text-xs sm:text-sm mt-0.5 truncate",
             variant === 'primary' ? "text-white/70" : "text-text-secondary"
           )}>
             {description}
@@ -50,6 +51,6 @@ const HomeCard = ({
       </div>
     </button>
   );
-};
+});
 
 export default HomeCard;

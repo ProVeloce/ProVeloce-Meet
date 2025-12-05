@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo } from 'react';
 import {
   CallControls,
   CallParticipantsList,
@@ -10,7 +10,7 @@ import {
   useCall,
 } from '@stream-io/video-react-sdk';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
-import { Users, LayoutGrid, Copy, Link2, MessageSquare, Clock, MoreVertical, X } from 'lucide-react';
+import { Users, LayoutGrid, Copy, Link2, MessageSquare, MoreVertical, X, ChevronUp } from 'lucide-react';
 import { useUser, useAuth } from '@clerk/nextjs';
 
 import Loader from './Loader';
@@ -23,6 +23,52 @@ import { useToast } from './ui/use-toast';
 
 type CallLayoutType = 'grid' | 'speaker-left' | 'speaker-right';
 
+// Memoized layout components to prevent re-renders
+const GridLayoutMemo = memo(function GridLayoutMemo() {
+  return <PaginatedGridLayout />;
+});
+
+const SpeakerLayoutLeftMemo = memo(function SpeakerLayoutLeftMemo() {
+  return <SpeakerLayout participantsBarPosition="left" />;
+});
+
+const SpeakerLayoutRightMemo = memo(function SpeakerLayoutRightMemo() {
+  return <SpeakerLayout participantsBarPosition="right" />;
+});
+
+// Control button component with touch feedback
+interface ControlButtonProps {
+  onClick: () => void;
+  active?: boolean;
+  title: string;
+  children: React.ReactNode;
+  className?: string;
+}
+
+const ControlButton = memo(function ControlButton({
+  onClick,
+  active,
+  title,
+  children,
+  className
+}: ControlButtonProps) {
+  return (
+    <button
+      onClick={onClick}
+      className={cn(
+        "control-btn touch-target no-select",
+        active && "bg-google-blue",
+        className
+      )}
+      title={title}
+      aria-label={title}
+      aria-pressed={active}
+    >
+      {children}
+    </button>
+  );
+});
+
 const MeetingRoom = () => {
   const searchParams = useSearchParams();
   const params = useParams();
@@ -32,38 +78,92 @@ const MeetingRoom = () => {
   const { getToken } = useAuth();
   const { toast } = useToast();
   const call = useCall();
+
+  // UI State
   const [layout, setLayout] = useState<CallLayoutType>('speaker-left');
   const [showParticipants, setShowParticipants] = useState(false);
   const [showChat, setShowChat] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [showMobileControls, setShowMobileControls] = useState(true);
+
+  // Meeting Data
   const [meeting, setMeeting] = useState<Meeting | null>(null);
   const [hasTrackedJoin, setHasTrackedJoin] = useState(false);
   const [meetingDuration, setMeetingDuration] = useState<number>(0);
-  const [showMoreMenu, setShowMoreMenu] = useState(false);
-  const { useCallCallingState } = useCallStateHooks();
 
+  const { useCallCallingState, useParticipantCount } = useCallStateHooks();
   const callingState = useCallCallingState();
-  const meetingId = Array.isArray(params.id) ? params.id[0] : params.id;
+  const participantCount = useParticipantCount();
 
-  // Fetch meeting data and track join
+  // Stable meeting ID reference
+  const meetingId = useMemo(() =>
+    Array.isArray(params.id) ? params.id[0] : params.id,
+    [params.id]
+  );
+
+  // Memoized callbacks to prevent re-renders
+  const copyToClipboard = useCallback((text: string, label: string) => {
+    navigator.clipboard.writeText(text);
+    toast({
+      title: `${label} copied`,
+      description: `${label} has been copied to clipboard`,
+    });
+    setShowMoreMenu(false);
+  }, [toast]);
+
+  const getMeetingLink = useCallback(() => {
+    if (!meeting) return '';
+    const baseUrl = typeof window !== 'undefined'
+      ? window.location.origin
+      : (process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000');
+    return `${baseUrl}/meeting/${meeting.streamCallId}${isPersonalRoom ? '?personal=true' : ''}`;
+  }, [meeting, isPersonalRoom]);
+
+  const toggleLayout = useCallback(() => {
+    setLayout(prev => prev === 'grid' ? 'speaker-left' : 'grid');
+  }, []);
+
+  const toggleParticipants = useCallback(() => {
+    setShowParticipants(prev => !prev);
+    if (showChat) setShowChat(false);
+  }, [showChat]);
+
+  const toggleChat = useCallback(() => {
+    setShowChat(prev => !prev);
+    if (showParticipants) setShowParticipants(false);
+  }, [showParticipants]);
+
+  const handleLeave = useCallback(async () => {
+    if (hasTrackedJoin && meeting && user?.id) {
+      try {
+        const token = await getToken({ template: "meet" });
+        if (token) {
+          await participantApi.leaveMeeting(meeting.streamCallId, token);
+        }
+      } catch (error) {
+        console.error('Error tracking leave:', error);
+      }
+    }
+    router.push('/');
+  }, [hasTrackedJoin, meeting, user?.id, getToken, router]);
+
+  // Fetch meeting data and track join - only when JOINED
   useEffect(() => {
-    const fetchMeetingAndTrackJoin = async () => {
-      if (!call?.id || !user?.id || callingState !== CallingState.JOINED) return;
+    if (!call?.id || !user?.id || callingState !== CallingState.JOINED || hasTrackedJoin) return;
 
+    const fetchMeetingAndTrackJoin = async () => {
       try {
         const token = await getToken({ template: "meet" });
         if (!token) return;
 
-        const meetingId = Array.isArray(params.id) ? params.id[0] : params.id;
         const fetchedMeeting = await meetingApi.getMeetingById(meetingId, token);
         setMeeting(fetchedMeeting);
 
-        if (!hasTrackedJoin) {
-          try {
-            await participantApi.joinMeeting(meetingId, token);
-            setHasTrackedJoin(true);
-          } catch (error) {
-            console.error('Error tracking join:', error);
-          }
+        try {
+          await participantApi.joinMeeting(meetingId, token);
+          setHasTrackedJoin(true);
+        } catch (error) {
+          console.error('Error tracking join:', error);
         }
       } catch (error) {
         console.error('Error fetching meeting:', error);
@@ -71,29 +171,27 @@ const MeetingRoom = () => {
     };
 
     fetchMeetingAndTrackJoin();
-  }, [call?.id, user?.id, params.id, getToken, callingState, hasTrackedJoin]);
+  }, [call?.id, user?.id, meetingId, getToken, callingState, hasTrackedJoin]);
 
-  // Track leave when component unmounts
+  // Track leave on unmount
   useEffect(() => {
+    const currentMeetingId = meetingId;
+    const currentHasTracked = hasTrackedJoin;
+    const currentCallId = call?.id;
+    const currentUserId = user?.id;
+
     return () => {
-      const trackLeave = async () => {
-        if (!hasTrackedJoin || !call?.id || !user?.id) return;
+      if (!currentHasTracked || !currentCallId || !currentUserId) return;
 
-        try {
-          const token = await getToken({ template: "meet" });
-          if (!token) return;
-          const meetingId = Array.isArray(params.id) ? params.id[0] : params.id;
-          await participantApi.leaveMeeting(meetingId, token);
-        } catch (error) {
-          console.error('Error tracking leave:', error);
+      getToken({ template: "meet" }).then(token => {
+        if (token) {
+          participantApi.leaveMeeting(currentMeetingId, token).catch(console.error);
         }
-      };
-
-      trackLeave();
+      });
     };
-  }, [hasTrackedJoin, call?.id, user?.id, params.id, getToken]);
+  }, [meetingId, hasTrackedJoin, call?.id, user?.id, getToken]);
 
-  // Meeting duration timer
+  // Meeting duration timer - optimized
   useEffect(() => {
     if (!meeting?.startTime || meeting?.endTime) {
       setMeetingDuration(0);
@@ -101,84 +199,89 @@ const MeetingRoom = () => {
     }
 
     const startTime = new Date(meeting.startTime).getTime();
+
     const updateDuration = () => {
-      const now = Date.now();
-      setMeetingDuration(Math.floor((now - startTime) / 1000));
+      setMeetingDuration(Math.floor((Date.now() - startTime) / 1000));
     };
 
     updateDuration();
     const interval = setInterval(updateDuration, 1000);
+
     return () => clearInterval(interval);
   }, [meeting?.startTime, meeting?.endTime]);
 
-  // Format duration as MM:SS or HH:MM:SS
-  const formatDuration = (seconds: number): string => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
+  // Close menus on outside click
+  useEffect(() => {
+    if (!showMoreMenu) return;
+
+    const handleClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      if (!target.closest('[data-menu="more"]')) {
+        setShowMoreMenu(false);
+      }
+    };
+
+    document.addEventListener('click', handleClick);
+    return () => document.removeEventListener('click', handleClick);
+  }, [showMoreMenu]);
+
+  // Format duration
+  const formattedDuration = useMemo(() => {
+    const hours = Math.floor(meetingDuration / 3600);
+    const minutes = Math.floor((meetingDuration % 3600) / 60);
+    const secs = meetingDuration % 60;
 
     if (hours > 0) {
       return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
     }
     return `${minutes}:${secs.toString().padStart(2, '0')}`;
-  };
+  }, [meetingDuration]);
 
   const isHost = meeting?.hostId === user?.id;
 
-  const getMeetingLink = () => {
-    if (!meeting) return '';
-    const baseUrl = typeof window !== 'undefined'
-      ? window.location.origin
-      : (process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000');
-    return `${baseUrl}/meeting/${meeting.streamCallId}${isPersonalRoom ? '?personal=true' : ''}`;
-  };
-
-  const copyToClipboard = (text: string, label: string) => {
-    navigator.clipboard.writeText(text);
-    toast({
-      title: `${label} copied`,
-      description: `${label} has been copied to clipboard`,
-    });
-    setShowMoreMenu(false);
-  };
+  // Render the appropriate layout - memoized selection
+  const LayoutComponent = useMemo(() => {
+    switch (layout) {
+      case 'grid':
+        return GridLayoutMemo;
+      case 'speaker-right':
+        return SpeakerLayoutLeftMemo;
+      default:
+        return SpeakerLayoutRightMemo;
+    }
+  }, [layout]);
 
   if (callingState !== CallingState.JOINED) return <Loader />;
 
-  const CallLayout = () => {
-    switch (layout) {
-      case 'grid':
-        return <PaginatedGridLayout />;
-      case 'speaker-right':
-        return <SpeakerLayout participantsBarPosition="left" />;
-      default:
-        return <SpeakerLayout participantsBarPosition="right" />;
-    }
-  };
-
   return (
-    <section className="relative h-screen w-full overflow-hidden bg-meeting">
+    <section className="relative h-screen h-[100dvh] w-full overflow-hidden bg-meeting">
       {/* Top Bar - Meeting Info */}
-      <div className="absolute top-0 left-0 right-0 z-40 flex items-center justify-between px-4 py-3">
+      <div className="absolute top-0 left-0 right-0 z-40 flex items-center justify-between px-3 py-2 sm:px-4 sm:py-3 safe-top">
         {/* Left - Meeting Title & Duration */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3 min-w-0">
           {meeting?.title && (
-            <span className="text-white text-sm font-medium truncate max-w-[200px]">
+            <span className="text-white text-xs sm:text-sm font-medium truncate max-w-[120px] sm:max-w-[200px]">
               {meeting.title}
             </span>
           )}
           {meetingDuration > 0 && (
-            <span className="text-white/70 text-sm font-mono">
-              {formatDuration(meetingDuration)}
+            <span className="text-white/70 text-xs sm:text-sm font-mono flex-shrink-0">
+              {formattedDuration}
             </span>
           )}
         </div>
 
-        {/* Right - Quick Actions */}
+        {/* Right - Participant count & Room code */}
         <div className="flex items-center gap-2">
+          {participantCount > 0 && (
+            <span className="text-white/70 text-xs sm:text-sm hidden sm:block">
+              {participantCount} {participantCount === 1 ? 'person' : 'people'}
+            </span>
+          )}
           {isHost && meeting?.roomCode && (
             <button
               onClick={() => copyToClipboard(meeting.roomCode!, 'Room code')}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface hover:bg-control-hover text-white text-sm transition-colors"
+              className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface hover:bg-control-hover text-white text-xs sm:text-sm transition-colors touch-target"
             >
               <span className="font-mono">{meeting.roomCode}</span>
               <Copy className="w-3.5 h-3.5" />
@@ -187,123 +290,155 @@ const MeetingRoom = () => {
         </div>
       </div>
 
-      {/* Main Video Area */}
-      <div className="h-full pt-14 pb-24 px-2">
-        <div className="h-full max-w-6xl mx-auto">
-          <CallLayout />
+      {/* Main Video Area - Responsive padding */}
+      <div className="h-full pt-12 pb-20 sm:pt-14 sm:pb-24 px-1 sm:px-2">
+        <div className="h-full w-full max-w-7xl mx-auto">
+          <LayoutComponent />
         </div>
       </div>
 
-      {/* Side Panels */}
+      {/* Side Panel - Participants */}
       {showParticipants && (
-        <div className="fixed right-0 top-0 h-full w-80 bg-surface z-50 animate-slideUp">
-          <div className="flex items-center justify-between p-4 border-b border-meeting-border">
-            <h3 className="text-white font-medium">People</h3>
-            <button
-              onClick={() => setShowParticipants(false)}
-              className="p-1 rounded hover:bg-control-hover text-white/70 hover:text-white transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-          <CallParticipantsList onClose={() => setShowParticipants(false)} />
-        </div>
-      )}
-
-      {showChat && meeting && (
-        <div className="fixed right-0 top-0 h-full z-50 animate-slideUp">
-          <MeetingChat
-            meetingId={meeting.streamCallId}
-            isOpen={showChat}
-            onClose={() => setShowChat(false)}
+        <>
+          <div
+            className="fixed inset-0 bg-black/30 z-40 sm:hidden"
+            onClick={() => setShowParticipants(false)}
           />
-        </div>
+          <div className="fixed right-0 top-0 h-full w-full sm:w-80 max-w-full bg-surface z-50 animate-slideInRight">
+            <div className="flex items-center justify-between p-4 border-b border-meeting-border">
+              <h3 className="text-white font-medium">People ({participantCount})</h3>
+              <button
+                onClick={() => setShowParticipants(false)}
+                className="p-2 rounded-full hover:bg-control-hover text-white/70 hover:text-white transition-colors touch-target"
+                aria-label="Close participants"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="overflow-y-auto h-[calc(100%-60px)]">
+              <CallParticipantsList onClose={() => setShowParticipants(false)} />
+            </div>
+          </div>
+        </>
       )}
 
-      {/* Bottom Control Bar - Google Meet Style */}
-      <div className="fixed bottom-0 left-0 right-0 z-40">
-        <div className="flex items-center justify-center gap-2 py-4 px-4">
-          {/* Main Controls */}
-          <div className="flex items-center gap-2 bg-surface/80 backdrop-blur-sm rounded-full px-4 py-2">
-            <CallControls
-              onLeave={async () => {
-                if (hasTrackedJoin && meeting && user?.id) {
-                  try {
-                    const token = await getToken({ template: "meet" });
-                    if (token) {
-                      await participantApi.leaveMeeting(meeting.streamCallId, token);
-                    }
-                  } catch (error) {
-                    console.error('Error tracking leave:', error);
-                  }
-                }
-                router.push('/');
-              }}
+      {/* Side Panel - Chat */}
+      {showChat && meeting && (
+        <>
+          <div
+            className="fixed inset-0 bg-black/30 z-40 sm:hidden"
+            onClick={() => setShowChat(false)}
+          />
+          <div className="fixed right-0 top-0 h-full w-full sm:w-80 max-w-full z-50 animate-slideInRight">
+            <MeetingChat
+              meetingId={meeting.streamCallId}
+              isOpen={showChat}
+              onClose={() => setShowChat(false)}
             />
+          </div>
+        </>
+      )}
 
-            <div className="w-px h-8 bg-white/20 mx-2" />
+      {/* Bottom Control Bar - Mobile optimized */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 safe-bottom">
+        {/* Mobile expand button */}
+        <button
+          className="sm:hidden absolute -top-10 left-1/2 -translate-x-1/2 p-2 bg-surface/80 rounded-full backdrop-blur-sm"
+          onClick={() => setShowMobileControls(!showMobileControls)}
+          aria-label={showMobileControls ? 'Hide controls' : 'Show controls'}
+        >
+          <ChevronUp className={cn("w-5 h-5 text-white transition-transform", !showMobileControls && "rotate-180")} />
+        </button>
 
-            {/* Layout Toggle */}
-            <button
-              onClick={() => setLayout(layout === 'grid' ? 'speaker-left' : 'grid')}
-              className="control-btn"
-              title="Change layout"
-            >
-              <LayoutGrid className="w-5 h-5" />
-            </button>
-
-            {/* Participants */}
-            <button
-              onClick={() => setShowParticipants(!showParticipants)}
-              className={cn("control-btn", showParticipants && "bg-google-blue")}
-              title="Show participants"
-            >
-              <Users className="w-5 h-5" />
-            </button>
-
-            {/* Chat */}
-            <button
-              onClick={() => setShowChat(!showChat)}
-              className={cn("control-btn", showChat && "bg-google-blue")}
-              title="Show chat"
-            >
-              <MessageSquare className="w-5 h-5" />
-            </button>
-
-            {/* More Options */}
-            <div className="relative">
-              <button
-                onClick={() => setShowMoreMenu(!showMoreMenu)}
-                className="control-btn"
-                title="More options"
-              >
-                <MoreVertical className="w-5 h-5" />
-              </button>
-
-              {showMoreMenu && (
-                <div className="absolute bottom-14 right-0 w-56 bg-surface rounded-lg shadow-lg py-2 animate-fadeIn">
-                  <button
-                    onClick={() => copyToClipboard(getMeetingLink(), 'Meeting link')}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-white hover:bg-control-hover transition-colors text-left"
-                  >
-                    <Link2 className="w-4 h-4" />
-                    <span className="text-sm">Copy meeting link</span>
-                  </button>
-                  {meeting?.roomCode && (
-                    <button
-                      onClick={() => copyToClipboard(meeting.roomCode!, 'Room code')}
-                      className="w-full flex items-center gap-3 px-4 py-2 text-white hover:bg-control-hover transition-colors text-left"
-                    >
-                      <Copy className="w-4 h-4" />
-                      <span className="text-sm">Copy room code</span>
-                    </button>
-                  )}
-                </div>
-              )}
+        <div className={cn(
+          "flex items-center justify-center gap-1 sm:gap-2 py-3 px-2 sm:px-4 transition-transform",
+          !showMobileControls && "translate-y-full sm:translate-y-0"
+        )}>
+          {/* Main Controls Container */}
+          <div className="flex items-center gap-1 sm:gap-2 bg-surface/90 backdrop-blur-sm rounded-full px-2 sm:px-4 py-2">
+            {/* Stream Call Controls */}
+            <div className="flex items-center">
+              <CallControls onLeave={handleLeave} />
             </div>
 
-            {/* End Call */}
-            {!isPersonalRoom && <EndCallButton />}
+            {/* Divider - hidden on small mobile */}
+            <div className="hidden sm:block w-px h-8 bg-white/20 mx-1 sm:mx-2" />
+
+            {/* Custom Controls */}
+            <div className="flex items-center gap-1 sm:gap-2">
+              {/* Layout Toggle - hidden on mobile */}
+              <ControlButton
+                onClick={toggleLayout}
+                title="Change layout"
+                className="hidden sm:flex"
+              >
+                <LayoutGrid className="w-5 h-5" />
+              </ControlButton>
+
+              {/* Participants */}
+              <ControlButton
+                onClick={toggleParticipants}
+                active={showParticipants}
+                title="Show participants"
+              >
+                <Users className="w-5 h-5" />
+              </ControlButton>
+
+              {/* Chat */}
+              <ControlButton
+                onClick={toggleChat}
+                active={showChat}
+                title="Show chat"
+              >
+                <MessageSquare className="w-5 h-5" />
+              </ControlButton>
+
+              {/* More Options */}
+              <div className="relative" data-menu="more">
+                <ControlButton
+                  onClick={() => setShowMoreMenu(!showMoreMenu)}
+                  active={showMoreMenu}
+                  title="More options"
+                >
+                  <MoreVertical className="w-5 h-5" />
+                </ControlButton>
+
+                {showMoreMenu && (
+                  <div className="absolute bottom-14 right-0 w-56 bg-surface rounded-lg shadow-2xl py-2 animate-popIn">
+                    <button
+                      onClick={() => copyToClipboard(getMeetingLink(), 'Meeting link')}
+                      className="w-full flex items-center gap-3 px-4 py-3 text-white hover:bg-control-hover transition-colors text-left touch-target"
+                    >
+                      <Link2 className="w-4 h-4" />
+                      <span className="text-sm">Copy meeting link</span>
+                    </button>
+                    {meeting?.roomCode && (
+                      <button
+                        onClick={() => copyToClipboard(meeting.roomCode!, 'Room code')}
+                        className="w-full flex items-center gap-3 px-4 py-3 text-white hover:bg-control-hover transition-colors text-left touch-target"
+                      >
+                        <Copy className="w-4 h-4" />
+                        <span className="text-sm">Copy room code</span>
+                      </button>
+                    )}
+                    {/* Mobile layout toggle */}
+                    <button
+                      onClick={() => {
+                        toggleLayout();
+                        setShowMoreMenu(false);
+                      }}
+                      className="sm:hidden w-full flex items-center gap-3 px-4 py-3 text-white hover:bg-control-hover transition-colors text-left touch-target"
+                    >
+                      <LayoutGrid className="w-4 h-4" />
+                      <span className="text-sm">Change layout</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* End Call - Only for host in non-personal rooms */}
+              {!isPersonalRoom && <EndCallButton />}
+            </div>
           </div>
         </div>
       </div>
@@ -311,4 +446,4 @@ const MeetingRoom = () => {
   );
 };
 
-export default MeetingRoom;
+export default memo(MeetingRoom);

@@ -9,15 +9,16 @@ export const metadata: Metadata = {
   description: 'A workspace for your team, powered by Stream Chat and Clerk.',
 };
 
-const RootLayout = ({ children }: Readonly<{children: ReactNode}>) => {
+const RootLayout = ({ children }: Readonly<{ children: ReactNode }>) => {
   return (
-    <main className="relative min-h-screen bg-light-2">
+    <main className="relative min-h-screen min-h-[100dvh] bg-bg-secondary overflow-x-hidden">
       <Navbar />
 
       <div className="flex pt-16">
         <Sidebar />
-        
-        <section className="flex min-h-[calc(100vh-4rem)] flex-1 flex-col px-4 sm:px-6 lg:px-8 pb-6 pt-6 max-md:pb-14">
+
+        {/* Main content - Responsive padding */}
+        <section className="flex min-h-[calc(100vh-4rem)] min-h-[calc(100dvh-4rem)] flex-1 flex-col px-3 sm:px-4 md:px-6 lg:px-8 pb-6 pt-4 sm:pt-6 overflow-x-hidden">
           <div className="w-full max-w-7xl mx-auto">{children}</div>
         </section>
       </div>

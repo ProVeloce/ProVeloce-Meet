@@ -1,12 +1,12 @@
 'use client';
-import { useEffect, useState, ErrorInfo, Component, ReactNode } from 'react';
+import { useEffect, useState, useCallback, memo, ErrorInfo, Component, ReactNode } from 'react';
 import {
   DeviceSettings,
   VideoPreview,
   useCall,
   useCallStateHooks,
 } from '@stream-io/video-react-sdk';
-import { Mic, MicOff, Video, VideoOff, Settings } from 'lucide-react';
+import { Mic, MicOff, Video, VideoOff, Settings, X } from 'lucide-react';
 
 import Alert from './Alert';
 import { Button } from './ui/button';
@@ -33,14 +33,51 @@ class VideoPreviewErrorBoundary extends Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex h-full w-full items-center justify-center rounded-lg bg-surface">
-          <p className="text-white/50 text-sm">Camera preview unavailable</p>
+        <div className="flex h-full w-full items-center justify-center rounded-xl bg-surface">
+          <p className="text-white/50 text-sm px-4 text-center">Camera preview unavailable</p>
         </div>
       );
     }
     return this.props.children;
   }
 }
+
+// Memoized toggle button
+interface ToggleButtonProps {
+  isOn: boolean;
+  onToggle: () => void;
+  disabled?: boolean;
+  iconOn: React.ReactNode;
+  iconOff: React.ReactNode;
+  label: string;
+}
+
+const ToggleButton = memo(function ToggleButton({
+  isOn,
+  onToggle,
+  disabled,
+  iconOn,
+  iconOff,
+  label
+}: ToggleButtonProps) {
+  return (
+    <button
+      onClick={onToggle}
+      disabled={disabled}
+      className={cn(
+        "w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all touch-target no-select",
+        "active:scale-95",
+        isOn
+          ? "bg-surface hover:bg-control-hover"
+          : "bg-control-danger hover:bg-red-600"
+      )}
+      aria-label={label}
+      aria-pressed={isOn}
+    >
+      {isOn ? iconOn : iconOff}
+    </button>
+  );
+});
 
 const MeetingSetup = ({
   setIsSetupComplete,
@@ -86,7 +123,7 @@ const MeetingSetup = ({
   const [isDevicesReady, setIsDevicesReady] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
 
-  // Wait for call to be properly initialized
+  // Initialize devices
   useEffect(() => {
     if (!call) return;
 
@@ -101,14 +138,11 @@ const MeetingSetup = ({
 
         const checkDevicesReady = (): boolean => {
           try {
-            if (!call || !call.camera || !call.microphone) return false;
-
-            const cameraReady = typeof call.camera.listDevices === 'function' &&
-              typeof call.camera.enable === 'function';
-            const micReady = typeof call.microphone.listDevices === 'function' &&
+            if (!call?.camera || !call?.microphone) return false;
+            return typeof call.camera.listDevices === 'function' &&
+              typeof call.camera.enable === 'function' &&
+              typeof call.microphone.listDevices === 'function' &&
               typeof call.microphone.enable === 'function';
-
-            return cameraReady && micReady;
           } catch {
             return false;
           }
@@ -161,22 +195,31 @@ const MeetingSetup = ({
     };
   }, [call]);
 
-  // Toggle mic/camera
-  useEffect(() => {
-    if (!isDevicesReady || !call?.camera || !call?.microphone) return;
-
-    if (isCameraOn) {
-      call.camera.enable();
-    } else {
-      call.camera.disable();
-    }
-
+  // Toggle mic/camera - memoized
+  const toggleMic = useCallback(() => {
+    if (!isDevicesReady || !call?.microphone) return;
     if (isMicOn) {
-      call.microphone.enable();
-    } else {
       call.microphone.disable();
+    } else {
+      call.microphone.enable();
     }
-  }, [isMicOn, isCameraOn, call, isDevicesReady]);
+    setIsMicOn(!isMicOn);
+  }, [isMicOn, isDevicesReady, call]);
+
+  const toggleCamera = useCallback(() => {
+    if (!isDevicesReady || !call?.camera) return;
+    if (isCameraOn) {
+      call.camera.disable();
+    } else {
+      call.camera.enable();
+    }
+    setIsCameraOn(!isCameraOn);
+  }, [isCameraOn, isDevicesReady, call]);
+
+  const handleJoin = useCallback(() => {
+    call.join();
+    setIsSetupComplete(true);
+  }, [call, setIsSetupComplete]);
 
   if (callTimeNotArrived) {
     return (
@@ -201,16 +244,24 @@ const MeetingSetup = ({
     call?.microphone &&
     typeof call.camera.listDevices === 'function';
 
+  // Status message
+  const getStatusMessage = () => {
+    if (!isMicOn && !isCameraOn) return "Camera and microphone are off";
+    if (!isMicOn) return "Microphone is off";
+    if (!isCameraOn) return "Camera is off";
+    return "Ready to join";
+  };
+
   return (
-    <div className="flex h-screen w-full bg-meeting">
-      <div className="flex flex-1 flex-col items-center justify-center p-6">
+    <div className="flex h-screen h-[100dvh] w-full bg-meeting">
+      <div className="flex flex-1 flex-col items-center justify-center p-4 sm:p-6 max-w-4xl mx-auto w-full">
         {/* Title */}
-        <h1 className="text-white text-2xl font-medium mb-8">
+        <h1 className="text-white text-xl sm:text-2xl font-medium mb-4 sm:mb-6 text-center">
           Ready to join?
         </h1>
 
-        {/* Video Preview Container */}
-        <div className="relative w-full max-w-2xl aspect-video rounded-lg overflow-hidden bg-surface mb-6">
+        {/* Video Preview Container - Responsive */}
+        <div className="relative w-full aspect-video max-h-[50vh] sm:max-h-[60vh] rounded-xl overflow-hidden bg-surface mb-4 sm:mb-6">
           <VideoPreviewErrorBoundary>
             {canRenderVideoPreview ? (
               <VideoPreview />
@@ -227,40 +278,33 @@ const MeetingSetup = ({
 
           {/* Overlay Controls */}
           <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3">
-            <button
-              onClick={() => setIsMicOn(!isMicOn)}
+            <ToggleButton
+              isOn={isMicOn}
+              onToggle={toggleMic}
               disabled={!canRenderVideoPreview}
-              className={cn(
-                "w-12 h-12 rounded-full flex items-center justify-center transition-colors",
-                isMicOn ? "bg-surface hover:bg-control-hover" : "bg-control-danger"
-              )}
-            >
-              {isMicOn ? (
-                <Mic className="w-5 h-5 text-white" />
-              ) : (
-                <MicOff className="w-5 h-5 text-white" />
-              )}
-            </button>
+              iconOn={<Mic className="w-5 h-5 text-white" />}
+              iconOff={<MicOff className="w-5 h-5 text-white" />}
+              label={isMicOn ? "Mute microphone" : "Unmute microphone"}
+            />
 
-            <button
-              onClick={() => setIsCameraOn(!isCameraOn)}
+            <ToggleButton
+              isOn={isCameraOn}
+              onToggle={toggleCamera}
               disabled={!canRenderVideoPreview}
-              className={cn(
-                "w-12 h-12 rounded-full flex items-center justify-center transition-colors",
-                isCameraOn ? "bg-surface hover:bg-control-hover" : "bg-control-danger"
-              )}
-            >
-              {isCameraOn ? (
-                <Video className="w-5 h-5 text-white" />
-              ) : (
-                <VideoOff className="w-5 h-5 text-white" />
-              )}
-            </button>
+              iconOn={<Video className="w-5 h-5 text-white" />}
+              iconOff={<VideoOff className="w-5 h-5 text-white" />}
+              label={isCameraOn ? "Turn off camera" : "Turn on camera"}
+            />
 
             {canRenderVideoPreview && (
               <button
                 onClick={() => setShowSettings(!showSettings)}
-                className="w-12 h-12 rounded-full bg-surface hover:bg-control-hover flex items-center justify-center transition-colors"
+                className={cn(
+                  "w-12 h-12 sm:w-14 sm:h-14 rounded-full flex items-center justify-center transition-all touch-target no-select",
+                  "active:scale-95",
+                  showSettings ? "bg-google-blue" : "bg-surface hover:bg-control-hover"
+                )}
+                aria-label="Device settings"
               >
                 <Settings className="w-5 h-5 text-white" />
               </button>
@@ -268,39 +312,44 @@ const MeetingSetup = ({
           </div>
         </div>
 
-        {/* Device Settings Panel */}
+        {/* Device Settings Panel - Modal on mobile */}
         {showSettings && canRenderVideoPreview && (
-          <div className="mb-6 bg-surface rounded-lg p-4">
-            <DeviceSettings />
-          </div>
+          <>
+            <div
+              className="fixed inset-0 bg-black/30 z-40 sm:hidden"
+              onClick={() => setShowSettings(false)}
+            />
+            <div className="fixed sm:relative inset-x-0 bottom-0 sm:inset-auto bg-surface rounded-t-2xl sm:rounded-xl p-4 z-50 sm:z-auto mb-0 sm:mb-6 animate-slideUp sm:animate-fadeIn max-h-[60vh] overflow-y-auto">
+              <div className="flex items-center justify-between mb-4 sm:hidden">
+                <h3 className="text-white font-medium">Settings</h3>
+                <button
+                  onClick={() => setShowSettings(false)}
+                  className="p-2 rounded-full hover:bg-control-hover touch-target"
+                >
+                  <X className="w-5 h-5 text-white" />
+                </button>
+              </div>
+              <DeviceSettings />
+            </div>
+          </>
         )}
+
+        {/* Status Text */}
+        <p className="text-white/60 text-sm mb-4 sm:mb-6 text-center">
+          {getStatusMessage()}
+        </p>
 
         {/* Join Button */}
         <Button
-          onClick={() => {
-            call.join();
-            setIsSetupComplete(true);
-          }}
+          onClick={handleJoin}
           disabled={!canRenderVideoPreview}
-          className="bg-google-blue hover:bg-google-blue-hover text-white px-8 py-3 rounded-full font-medium text-base transition-colors"
+          className="bg-google-blue hover:bg-google-blue-hover text-white px-8 sm:px-10 py-3 rounded-full font-medium text-base transition-all active:scale-97 touch-target min-w-[160px]"
         >
           Join now
         </Button>
-
-        {/* Status Text */}
-        <p className="text-white/50 text-sm mt-4">
-          {isMicOn && isCameraOn
-            ? "Your microphone and camera are on"
-            : isMicOn
-              ? "Your camera is off"
-              : isCameraOn
-                ? "Your microphone is off"
-                : "Your microphone and camera are off"
-          }
-        </p>
       </div>
     </div>
   );
 };
 
-export default MeetingSetup;
+export default memo(MeetingSetup);

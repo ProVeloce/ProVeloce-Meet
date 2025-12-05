@@ -1,16 +1,18 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { Home, Calendar, Clock, Video, User } from 'lucide-react';
+import { Home, Calendar, Clock, Video, History, User } from 'lucide-react';
+import { memo } from 'react';
 import { cn } from '@/lib/utils';
 
-// Routes matching the actual Next.js app structure
+// Navigation items matching MobileNav
 const navItems = [
-  { label: 'Home', route: '/home', icon: Home },
-  { label: 'Upcoming', route: '/upcoming', icon: Calendar },
-  { label: 'Previous', route: '/previous', icon: Clock },
-  { label: 'Recordings', route: '/recordings', icon: Video },
-  { label: 'Personal Room', route: '/personal-room', icon: User },
+  { label: 'Home', route: '/home', Icon: Home },
+  { label: 'Upcoming', route: '/upcoming', Icon: Calendar },
+  { label: 'Previous', route: '/previous', Icon: Clock },
+  { label: 'Recordings', route: '/recordings', Icon: Video },
+  { label: 'History', route: '/history', Icon: History },
+  { label: 'Personal Room', route: '/personal-room', Icon: User },
 ];
 
 const Sidebar = () => {
@@ -26,22 +28,22 @@ const Sidebar = () => {
         {navItems.map((item) => {
           const isActive = pathname === item.route ||
             (item.route !== '/home' && pathname.startsWith(`${item.route}/`));
-          const Icon = item.icon;
+          const Icon = item.Icon;
 
           return (
             <Link
               href={item.route}
               key={item.label}
               className={cn(
-                'flex gap-3 items-center px-3 py-2.5 rounded-full transition-colors',
+                'flex gap-3 items-center px-3 py-2.5 rounded-full transition-colors touch-target',
                 isActive
                   ? 'bg-google-blue-light text-google-blue font-medium'
                   : 'text-text-secondary hover:bg-bg-tertiary'
               )}
               aria-current={isActive ? 'page' : undefined}
             >
-              <Icon className="w-5 h-5" />
-              <span className="text-sm max-lg:hidden">{item.label}</span>
+              <Icon className="w-5 h-5 flex-shrink-0" />
+              <span className="text-sm max-lg:hidden truncate">{item.label}</span>
             </Link>
           );
         })}
@@ -50,4 +52,4 @@ const Sidebar = () => {
   );
 };
 
-export default Sidebar;
+export default memo(Sidebar);
