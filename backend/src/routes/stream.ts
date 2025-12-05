@@ -1,10 +1,15 @@
 import { Router, Request, Response } from 'express';
 import { StreamClient } from '@stream-io/node-sdk';
 import { verifyAuth } from './auth';
+import { isTokenExpiringSoon } from '../config/clerk';
 
 const router = Router();
 
-// These will be checked when actually used, not at module load time
+// Token expiry configuration
+const TOKEN_EXPIRY_HOURS = 4; // 4 hours for long meetings
+const TOKEN_REFRESH_BUFFER_SECONDS = 300; // Refresh 5 min before expiry
+
+// Stream credentials getter
 const getStreamCredentials = () => {
   const STREAM_API_KEY = process.env.STREAM_API_KEY || process.env.NEXT_PUBLIC_STREAM_API_KEY;
   const STREAM_API_SECRET = process.env.STREAM_SECRET_KEY;
@@ -16,15 +21,28 @@ const getStreamCredentials = () => {
   return { STREAM_API_KEY, STREAM_API_SECRET };
 };
 
-// Generate Stream token for authenticated user
-// IMPORTANT: Token generation should ALWAYS work if authentication passes
-// MongoDB caching is optional and should never block token generation
+// Stream client singleton
+let streamClient: StreamClient | null = null;
+const getStreamClient = () => {
+  if (!streamClient) {
+    const { STREAM_API_KEY, STREAM_API_SECRET } = getStreamCredentials();
+    if (STREAM_API_KEY && STREAM_API_SECRET) {
+      streamClient = new StreamClient(STREAM_API_KEY, STREAM_API_SECRET);
+    }
+  }
+  return streamClient;
+};
+
+/**
+ * Generate Stream token for authenticated user
+ * Extended to 4 hours for long meetings
+ */
 router.post('/token', verifyAuth, async (req: Request, res: Response) => {
   try {
     const userId = req.userId;
 
     if (!userId) {
-      console.error('Stream token generation failed: User ID not found in request');
+      console.error('[Stream] Token generation failed: User ID not found');
       return res.status(401).json({
         error: 'Unauthorized: User ID not found',
         details: 'Authentication token was valid but user ID could not be extracted'
@@ -34,86 +52,125 @@ router.post('/token', verifyAuth, async (req: Request, res: Response) => {
     const { STREAM_API_KEY, STREAM_API_SECRET } = getStreamCredentials();
 
     if (!STREAM_API_KEY || !STREAM_API_SECRET) {
-      console.error('Stream token generation failed: API credentials missing', {
-        hasApiKey: !!STREAM_API_KEY,
-        hasApiSecret: !!STREAM_API_SECRET,
-      });
+      console.error('[Stream] Token generation failed: API credentials missing');
       return res.status(500).json({
         error: 'Stream API credentials are not configured',
-        details: 'STREAM_API_KEY and STREAM_API_SECRET must be set in environment variables'
+        details: 'STREAM_API_KEY and STREAM_API_SECRET must be set'
       });
     }
 
-    // Generate Stream token immediately - this is the core functionality
-    // MongoDB operations are OPTIONAL and should not block this
-    const streamClient = new StreamClient(STREAM_API_KEY, STREAM_API_SECRET);
-    const expirationTime = Math.floor(Date.now() / 1000) + 3600; // 1 hour
+    // Generate Stream token with extended expiry
+    const client = getStreamClient();
+    if (!client) {
+      return res.status(500).json({ error: 'Failed to initialize Stream client' });
+    }
+
+    const expirationTime = Math.floor(Date.now() / 1000) + (TOKEN_EXPIRY_HOURS * 3600);
     const issuedAt = Math.floor(Date.now() / 1000) - 60;
-    const token = streamClient.createToken(userId, expirationTime, issuedAt);
+    const token = client.createToken(userId, expirationTime, issuedAt);
 
     if (!token || typeof token !== 'string') {
-      console.error('Stream client returned invalid token');
-      return res.status(500).json({
-        error: 'Failed to generate Stream token',
-        details: 'Stream SDK returned an invalid token'
-      });
+      console.error('[Stream] Client returned invalid token');
+      return res.status(500).json({ error: 'Failed to generate Stream token' });
     }
 
-    // Try to cache in MongoDB, but don't fail if it doesn't work
-    // This is a background operation that shouldn't block the response
-    try {
-      const { User } = await import('../models/User');
-      let user = await User.findOne({ clerkId: userId });
-
-      if (user) {
-        // Update existing user with new token
-        user.streamToken = token;
-        user.streamTokenExpiry = new Date(expirationTime * 1000);
-        await user.save();
-      } else {
-        // Try to create user in background (non-blocking)
-        try {
-          const { clerkClient } = await import('../config/clerk');
-          const clerkUser = await clerkClient.users.getUser(userId);
-
-          if (clerkUser) {
-            const newUser = new User({
-              clerkId: userId,
-              email: clerkUser.emailAddresses[0]?.emailAddress || `${userId}@no-email.com`,
-              username: clerkUser.username || undefined,
-              firstName: clerkUser.firstName || undefined,
-              lastName: clerkUser.lastName || undefined,
-              imageUrl: clerkUser.imageUrl || undefined,
-              streamToken: token,
-              streamTokenExpiry: new Date(expirationTime * 1000),
-            });
-            await newUser.save();
-            console.log('Created user in MongoDB:', userId);
-          }
-        } catch (userCreateError: any) {
-          // Log but don't fail - user creation is optional
-          console.warn('Could not create user in MongoDB (non-blocking):', userCreateError?.message);
-        }
-      }
-    } catch (dbError: any) {
-      // Log but don't fail - MongoDB caching is optional
-      console.warn('MongoDB operation failed (non-blocking):', dbError?.message);
-    }
-
-    // Always return the token if we got this far
-    return res.json({ token });
-  } catch (error: any) {
-    console.error('Unexpected error in Stream token generation:', {
-      error: error?.message,
-      stack: error?.stack,
-      userId: req.userId,
+    // Background: Cache token in MongoDB (non-blocking)
+    cacheTokenInBackground(userId, token, expirationTime).catch((err) => {
+      console.warn('[Stream] MongoDB cache failed (non-blocking):', err.message);
     });
+
+    // Return token with metadata
+    return res.json({
+      token,
+      expiresAt: expirationTime,
+      expiresIn: TOKEN_EXPIRY_HOURS * 3600,
+    });
+  } catch (error: any) {
+    console.error('[Stream] Unexpected error:', error.message);
     res.status(500).json({
       error: 'Failed to generate Stream token',
-      details: error?.message || 'An unexpected error occurred'
+      details: error.message || 'An unexpected error occurred'
     });
   }
 });
 
-export { router as streamRoutes };
+/**
+ * Refresh token proactively (before expiry)
+ */
+router.post('/refresh', verifyAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId;
+    const { currentToken } = req.body;
 
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Check if current token needs refresh
+    if (currentToken && !isTokenExpiringSoon(currentToken, TOKEN_REFRESH_BUFFER_SECONDS)) {
+      return res.json({
+        refreshed: false,
+        message: 'Token still valid',
+      });
+    }
+
+    const client = getStreamClient();
+    if (!client) {
+      return res.status(500).json({ error: 'Failed to initialize Stream client' });
+    }
+
+    const expirationTime = Math.floor(Date.now() / 1000) + (TOKEN_EXPIRY_HOURS * 3600);
+    const issuedAt = Math.floor(Date.now() / 1000) - 60;
+    const token = client.createToken(userId, expirationTime, issuedAt);
+
+    // Cache in background
+    cacheTokenInBackground(userId, token, expirationTime).catch(() => { });
+
+    return res.json({
+      refreshed: true,
+      token,
+      expiresAt: expirationTime,
+      expiresIn: TOKEN_EXPIRY_HOURS * 3600,
+    });
+  } catch (error: any) {
+    console.error('[Stream] Refresh error:', error.message);
+    res.status(500).json({ error: 'Failed to refresh token' });
+  }
+});
+
+/**
+ * Background token caching
+ */
+async function cacheTokenInBackground(userId: string, token: string, expirationTime: number) {
+  try {
+    const { User } = await import('../models/User');
+    let user = await User.findOne({ clerkId: userId });
+
+    if (user) {
+      user.streamToken = token;
+      user.streamTokenExpiry = new Date(expirationTime * 1000);
+      await user.save();
+    } else {
+      const { clerkClient } = await import('../config/clerk');
+      const clerkUser = await clerkClient.users.getUser(userId);
+
+      if (clerkUser) {
+        const newUser = new User({
+          clerkId: userId,
+          email: clerkUser.emailAddresses[0]?.emailAddress || `${userId}@no-email.com`,
+          username: clerkUser.username || undefined,
+          firstName: clerkUser.firstName || undefined,
+          lastName: clerkUser.lastName || undefined,
+          imageUrl: clerkUser.imageUrl || undefined,
+          streamToken: token,
+          streamTokenExpiry: new Date(expirationTime * 1000),
+        });
+        await newUser.save();
+      }
+    }
+  } catch (error: any) {
+    throw error;
+  }
+}
+
+export { router as streamRoutes };

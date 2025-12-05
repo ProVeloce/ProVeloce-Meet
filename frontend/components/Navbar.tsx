@@ -3,15 +3,15 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { SignedIn, UserButton } from '@clerk/nextjs';
-import { Menu } from 'lucide-react';
-import { useState } from 'react';
+import { memo } from 'react';
 
 import MobileNav from './MobileNav';
+import ThemeToggle from './ThemeToggle';
 
-const Navbar = () => {
+const Navbar = memo(function Navbar() {
   return (
     <nav
-      className="fixed top-0 left-0 right-0 z-50 w-full bg-white border-b border-border-lighter"
+      className="fixed top-0 left-0 right-0 z-50 w-full bg-white dark:bg-dark-1 border-b border-border-lighter dark:border-dark-3 transition-colors"
       role="navigation"
       aria-label="Main navigation"
     >
@@ -36,7 +36,10 @@ const Navbar = () => {
         </Link>
 
         {/* Right side */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
+          {/* Theme Toggle */}
+          <ThemeToggle />
+
           <SignedIn>
             <UserButton
               afterSignOutUrl="/sign-in"
@@ -55,6 +58,6 @@ const Navbar = () => {
       </div>
     </nav>
   );
-};
+});
 
 export default Navbar;

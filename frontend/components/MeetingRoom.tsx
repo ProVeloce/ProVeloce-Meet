@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import { useState, useEffect, useMemo, useCallback, memo, useRef } from 'react';
 import {
   CallControls,
   CallParticipantsList,
@@ -12,6 +12,7 @@ import {
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import { Users, LayoutGrid, Copy, Link2, MessageSquare, MoreVertical, X, ChevronUp } from 'lucide-react';
 import { useUser, useAuth } from '@clerk/nextjs';
+import { motion, AnimatePresence } from 'framer-motion';
 
 import Loader from './Loader';
 import EndCallButton from './EndCallButton';
@@ -20,6 +21,8 @@ import { cn } from '@/lib/utils';
 import { meetingApi, Meeting } from '@/lib/meeting-api';
 import { participantApi } from '@/lib/participant-api';
 import { useToast } from './ui/use-toast';
+import { useMeetingStore, debouncedSetParticipantCount, LayoutMode } from '@/stores/useMeetingStore';
+import { timing, easing, prefersReducedMotion } from '@/lib/motion';
 
 type CallLayoutType = 'grid' | 'speaker-left' | 'speaker-right';
 
@@ -52,8 +55,10 @@ const ControlButton = memo(function ControlButton({
   children,
   className
 }: ControlButtonProps) {
+  const reducedMotion = typeof window !== 'undefined' && prefersReducedMotion();
+
   return (
-    <button
+    <motion.button
       onClick={onClick}
       className={cn(
         "control-btn touch-target no-select",
@@ -63,11 +68,45 @@ const ControlButton = memo(function ControlButton({
       title={title}
       aria-label={title}
       aria-pressed={active}
+      whileHover={!reducedMotion ? { scale: 1.05 } : undefined}
+      whileTap={!reducedMotion ? { scale: 0.95 } : undefined}
+      transition={{ duration: timing.fast }}
     >
       {children}
-    </button>
+    </motion.button>
   );
 });
+
+// Panel animation variants with GPU acceleration
+const panelVariants = {
+  hidden: {
+    x: '100%',
+    opacity: 0,
+  },
+  visible: {
+    x: 0,
+    opacity: 1,
+    transition: {
+      type: 'spring',
+      stiffness: 300,
+      damping: 30,
+    }
+  },
+  exit: {
+    x: '100%',
+    opacity: 0,
+    transition: {
+      duration: timing.normal,
+      ease: easing.out,
+    }
+  }
+};
+
+const backdropVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { duration: timing.fast } },
+  exit: { opacity: 0, transition: { duration: timing.fast } }
+};
 
 const MeetingRoom = () => {
   const searchParams = useSearchParams();
@@ -78,8 +117,19 @@ const MeetingRoom = () => {
   const { getToken } = useAuth();
   const { toast } = useToast();
   const call = useCall();
+  const reducedMotion = typeof window !== 'undefined' && prefersReducedMotion();
 
-  // UI State
+  // Zustand store
+  const {
+    layout: storeLayout,
+    setLayout: setStoreLayout,
+    activePanel,
+    togglePanel,
+    setMeetingId,
+    resetMeeting,
+  } = useMeetingStore();
+
+  // UI State (local for performance-critical values)
   const [layout, setLayout] = useState<CallLayoutType>('speaker-left');
   const [showParticipants, setShowParticipants] = useState(false);
   const [showChat, setShowChat] = useState(false);
@@ -91,15 +141,43 @@ const MeetingRoom = () => {
   const [hasTrackedJoin, setHasTrackedJoin] = useState(false);
   const [meetingDuration, setMeetingDuration] = useState<number>(0);
 
+  // Refs for stable references
+  const layoutRef = useRef<CallLayoutType>('speaker-left');
+  const videoContainerRef = useRef<HTMLDivElement>(null);
+
   const { useCallCallingState, useParticipantCount } = useCallStateHooks();
   const callingState = useCallCallingState();
   const participantCount = useParticipantCount();
+
+  // Debounced participant count update to Zustand
+  useEffect(() => {
+    if (participantCount !== undefined) {
+      debouncedSetParticipantCount(participantCount);
+    }
+  }, [participantCount]);
 
   // Stable meeting ID reference
   const meetingId = useMemo(() =>
     Array.isArray(params.id) ? params.id[0] : params.id,
     [params.id]
   );
+
+  // Sync meeting ID to store
+  useEffect(() => {
+    if (meetingId) {
+      setMeetingId(meetingId);
+    }
+    return () => {
+      setMeetingId(null);
+    };
+  }, [meetingId, setMeetingId]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      resetMeeting();
+    };
+  }, [resetMeeting]);
 
   // Memoized callbacks to prevent re-renders
   const copyToClipboard = useCallback((text: string, label: string) => {
@@ -120,8 +198,14 @@ const MeetingRoom = () => {
   }, [meeting, isPersonalRoom]);
 
   const toggleLayout = useCallback(() => {
-    setLayout(prev => prev === 'grid' ? 'speaker-left' : 'grid');
-  }, []);
+    setLayout(prev => {
+      const newLayout = prev === 'grid' ? 'speaker-left' : 'grid';
+      layoutRef.current = newLayout;
+      // Sync to Zustand (simplified view)
+      setStoreLayout(newLayout === 'grid' ? 'grid' : 'speaker');
+      return newLayout;
+    });
+  }, [setStoreLayout]);
 
   const toggleParticipants = useCallback(() => {
     setShowParticipants(prev => !prev);
@@ -290,54 +374,91 @@ const MeetingRoom = () => {
         </div>
       </div>
 
-      {/* Main Video Area - Responsive padding */}
-      <div className="h-full pt-12 pb-20 sm:pt-14 sm:pb-24 px-1 sm:px-2">
+      {/* Main Video Area - GPU accelerated transforms */}
+      <div
+        ref={videoContainerRef}
+        className="h-full pt-12 pb-20 sm:pt-14 sm:pb-24 px-1 sm:px-2"
+        style={{
+          transform: 'translate3d(0,0,0)', // Force GPU layer
+          willChange: 'transform'
+        }}
+      >
         <div className="h-full w-full max-w-7xl mx-auto">
           <LayoutComponent />
         </div>
       </div>
 
-      {/* Side Panel - Participants */}
-      {showParticipants && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/30 z-40 sm:hidden"
-            onClick={() => setShowParticipants(false)}
-          />
-          <div className="fixed right-0 top-0 h-full w-full sm:w-80 max-w-full bg-surface z-50 animate-slideInRight">
-            <div className="flex items-center justify-between p-4 border-b border-meeting-border">
-              <h3 className="text-white font-medium">People ({participantCount})</h3>
-              <button
-                onClick={() => setShowParticipants(false)}
-                className="p-2 rounded-full hover:bg-control-hover text-white/70 hover:text-white transition-colors touch-target"
-                aria-label="Close participants"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            <div className="overflow-y-auto h-[calc(100%-60px)]">
-              <CallParticipantsList onClose={() => setShowParticipants(false)} />
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Side Panel - Chat */}
-      {showChat && meeting && (
-        <>
-          <div
-            className="fixed inset-0 bg-black/30 z-40 sm:hidden"
-            onClick={() => setShowChat(false)}
-          />
-          <div className="fixed right-0 top-0 h-full w-full sm:w-80 max-w-full z-50 animate-slideInRight">
-            <MeetingChat
-              meetingId={meeting.streamCallId}
-              isOpen={showChat}
-              onClose={() => setShowChat(false)}
+      {/* Side Panel - Participants (GPU accelerated) */}
+      <AnimatePresence mode="wait">
+        {showParticipants && (
+          <>
+            <motion.div
+              key="participants-backdrop"
+              variants={backdropVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="fixed inset-0 bg-black/30 z-40 sm:hidden"
+              onClick={() => setShowParticipants(false)}
             />
-          </div>
-        </>
-      )}
+            <motion.div
+              key="participants-panel"
+              variants={panelVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="fixed right-0 top-0 h-full w-full sm:w-80 max-w-full bg-surface z-50"
+              style={{ transform: 'translate3d(0,0,0)' }}
+            >
+              <div className="flex items-center justify-between p-4 border-b border-meeting-border">
+                <h3 className="text-white font-medium">People ({participantCount})</h3>
+                <button
+                  onClick={() => setShowParticipants(false)}
+                  className="p-2 rounded-full hover:bg-control-hover text-white/70 hover:text-white transition-colors touch-target"
+                  aria-label="Close participants"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+              <div className="overflow-y-auto h-[calc(100%-60px)]">
+                <CallParticipantsList onClose={() => setShowParticipants(false)} />
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* Side Panel - Chat (GPU accelerated) */}
+      <AnimatePresence mode="wait">
+        {showChat && meeting && (
+          <>
+            <motion.div
+              key="chat-backdrop"
+              variants={backdropVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="fixed inset-0 bg-black/30 z-40 sm:hidden"
+              onClick={() => setShowChat(false)}
+            />
+            <motion.div
+              key="chat-panel"
+              variants={panelVariants}
+              initial="hidden"
+              animate="visible"
+              exit="exit"
+              className="fixed right-0 top-0 h-full w-full sm:w-80 max-w-full z-50"
+              style={{ transform: 'translate3d(0,0,0)' }}
+            >
+              <MeetingChat
+                meetingId={meeting.streamCallId}
+                isOpen={showChat}
+                onClose={() => setShowChat(false)}
+              />
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
 
       {/* Bottom Control Bar - Mobile optimized */}
       <div className="fixed bottom-0 left-0 right-0 z-40 safe-bottom">
@@ -351,7 +472,7 @@ const MeetingRoom = () => {
         </button>
 
         <div className={cn(
-          "flex items-center justify-center gap-1 sm:gap-2 py-3 px-2 sm:px-4 transition-transform",
+          "flex items-center justify-center gap-1 sm:gap-2 py-3 px-2 sm:px-4 transition-transform duration-300",
           !showMobileControls && "translate-y-full sm:translate-y-0"
         )}>
           {/* Main Controls Container */}
@@ -403,37 +524,45 @@ const MeetingRoom = () => {
                   <MoreVertical className="w-5 h-5" />
                 </ControlButton>
 
-                {showMoreMenu && (
-                  <div className="absolute bottom-14 right-0 w-56 bg-surface rounded-lg shadow-2xl py-2 animate-popIn">
-                    <button
-                      onClick={() => copyToClipboard(getMeetingLink(), 'Meeting link')}
-                      className="w-full flex items-center gap-3 px-4 py-3 text-white hover:bg-control-hover transition-colors text-left touch-target"
+                <AnimatePresence>
+                  {showMoreMenu && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                      transition={{ duration: timing.fast }}
+                      className="absolute bottom-14 right-0 w-56 bg-surface rounded-lg shadow-2xl py-2"
                     >
-                      <Link2 className="w-4 h-4" />
-                      <span className="text-sm">Copy meeting link</span>
-                    </button>
-                    {meeting?.roomCode && (
                       <button
-                        onClick={() => copyToClipboard(meeting.roomCode!, 'Room code')}
+                        onClick={() => copyToClipboard(getMeetingLink(), 'Meeting link')}
                         className="w-full flex items-center gap-3 px-4 py-3 text-white hover:bg-control-hover transition-colors text-left touch-target"
                       >
-                        <Copy className="w-4 h-4" />
-                        <span className="text-sm">Copy room code</span>
+                        <Link2 className="w-4 h-4" />
+                        <span className="text-sm">Copy meeting link</span>
                       </button>
-                    )}
-                    {/* Mobile layout toggle */}
-                    <button
-                      onClick={() => {
-                        toggleLayout();
-                        setShowMoreMenu(false);
-                      }}
-                      className="sm:hidden w-full flex items-center gap-3 px-4 py-3 text-white hover:bg-control-hover transition-colors text-left touch-target"
-                    >
-                      <LayoutGrid className="w-4 h-4" />
-                      <span className="text-sm">Change layout</span>
-                    </button>
-                  </div>
-                )}
+                      {meeting?.roomCode && (
+                        <button
+                          onClick={() => copyToClipboard(meeting.roomCode!, 'Room code')}
+                          className="w-full flex items-center gap-3 px-4 py-3 text-white hover:bg-control-hover transition-colors text-left touch-target"
+                        >
+                          <Copy className="w-4 h-4" />
+                          <span className="text-sm">Copy room code</span>
+                        </button>
+                      )}
+                      {/* Mobile layout toggle */}
+                      <button
+                        onClick={() => {
+                          toggleLayout();
+                          setShowMoreMenu(false);
+                        }}
+                        className="sm:hidden w-full flex items-center gap-3 px-4 py-3 text-white hover:bg-control-hover transition-colors text-left touch-target"
+                      >
+                        <LayoutGrid className="w-4 h-4" />
+                        <span className="text-sm">Change layout</span>
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
               </div>
 
               {/* End Call - Only for host in non-personal rooms */}

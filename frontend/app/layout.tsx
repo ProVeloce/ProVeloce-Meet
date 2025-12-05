@@ -10,6 +10,7 @@ import { Toaster } from "@/components/ui/toaster";
 import AuthHeader from "@/components/AuthHeader";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import ClerkProviderClient from "@/components/ClerkProviderClient";
+import { ThemeProvider, ThemeScript } from "@/providers/ThemeProvider";
 
 // Use Roboto font (Google's standard font, similar to Google Sans)
 const roboto = Roboto({
@@ -102,7 +103,10 @@ export default function RootLayout({
 
   return (
     <ClerkProviderClient appearance={clerkAppearance}>
-      <html lang="en">
+      <html lang="en" suppressHydrationWarning>
+        <head>
+          <ThemeScript />
+        </head>
         <body className={`${roboto.variable} ${roboto.className} bg-light-2 text-text-primary`}>
           {/* Define __pcPlatform before copilot script loads to prevent "PC plat undefined" error */}
           <Script
@@ -144,8 +148,10 @@ export default function RootLayout({
             }}
           />
           <ErrorBoundary>
-            <Toaster />
-            {children}
+            <ThemeProvider>
+              <Toaster />
+              {children}
+            </ThemeProvider>
           </ErrorBoundary>
         </body>
       </html>

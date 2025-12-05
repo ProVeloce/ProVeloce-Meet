@@ -1,6 +1,6 @@
 'use client';
 
-import { ReactNode, useEffect, useState, useRef } from 'react';
+import { ReactNode, useEffect, useState, useRef, useCallback } from 'react';
 import { StreamVideoClient, StreamVideo } from '@stream-io/video-react-sdk';
 import { useUser, useAuth } from '@clerk/nextjs';
 
@@ -9,9 +9,19 @@ import Loader from '@/components/Loader';
 
 const API_KEY = process.env.NEXT_PUBLIC_STREAM_API_KEY;
 
+// Token refresh configuration
+const TOKEN_REFRESH_BUFFER_MS = 5 * 60 * 1000; // Refresh 5 minutes before expiry
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 1000;
+
 // Validate Stream API key
 if (typeof window !== 'undefined' && !API_KEY) {
   console.error('NEXT_PUBLIC_STREAM_API_KEY is not set. Video features will not work.');
+}
+
+interface TokenCache {
+  token: string;
+  expiresAt: number;
 }
 
 const StreamVideoProvider = ({ children }: { children: ReactNode }) => {
@@ -19,8 +29,156 @@ const StreamVideoProvider = ({ children }: { children: ReactNode }) => {
   const [error, setError] = useState<string | null>(null);
   const { user, isLoaded } = useUser();
   const { getToken } = useAuth();
-  const retryCountRef = useRef(0);
 
+  const retryCountRef = useRef(0);
+  const tokenCacheRef = useRef<TokenCache | null>(null);
+  const refreshTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isRefreshingRef = useRef(false);
+
+  // Parse JWT to get expiration time
+  const getTokenExpiry = useCallback((token: string): number => {
+    try {
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return (payload.exp || 0) * 1000; // Convert to milliseconds
+    } catch {
+      return Date.now() + 60 * 60 * 1000; // Default 1 hour
+    }
+  }, []);
+
+  // Validate JWT format
+  const isValidJWT = useCallback((token: string | null | undefined): token is string => {
+    if (!token || typeof token !== 'string') return false;
+    return token.split('.').length === 3;
+  }, []);
+
+  // Fetch fresh Clerk token with fallback
+  const getFreshClerkToken = useCallback(async (): Promise<string | null> => {
+    // Try with "meet" template first
+    let token = await getToken({ template: "meet" });
+    if (isValidJWT(token)) return token;
+
+    // Fallback: try without template
+    console.warn('Token with "meet" template failed, trying without template...');
+    token = await getToken();
+    if (isValidJWT(token)) return token;
+
+    console.error('Failed to get valid Clerk token');
+    return null;
+  }, [getToken, isValidJWT]);
+
+  // Fetch Stream token from backend
+  const fetchStreamToken = useCallback(async (clerkToken: string): Promise<string> => {
+    const response = await apiClient.post<{ token: string }>(
+      '/stream/token',
+      {},
+      clerkToken
+    );
+
+    if (!response?.token || typeof response.token !== 'string') {
+      throw new Error('Invalid token response from backend');
+    }
+
+    return response.token;
+  }, []);
+
+  // Main token provider with caching and proactive refresh
+  const tokenProvider = useCallback(async (): Promise<string> => {
+    // Return cached token if still valid
+    if (tokenCacheRef.current) {
+      const timeUntilExpiry = tokenCacheRef.current.expiresAt - Date.now();
+      if (timeUntilExpiry > TOKEN_REFRESH_BUFFER_MS) {
+        return tokenCacheRef.current.token;
+      }
+    }
+
+    // Prevent concurrent refreshes
+    if (isRefreshingRef.current) {
+      // Wait for current refresh to complete
+      await new Promise(resolve => setTimeout(resolve, 100));
+      if (tokenCacheRef.current) {
+        return tokenCacheRef.current.token;
+      }
+    }
+
+    isRefreshingRef.current = true;
+
+    try {
+      // Prevent infinite retry loops
+      if (retryCountRef.current >= MAX_RETRIES) {
+        const errorMessage = `Failed to fetch Stream token after ${MAX_RETRIES} attempts. Please refresh the page.`;
+        setError(errorMessage);
+        throw new Error(errorMessage);
+      }
+
+      retryCountRef.current++;
+
+      // Get fresh Clerk token
+      const clerkToken = await getFreshClerkToken();
+      if (!clerkToken) {
+        throw new Error('Failed to get authentication token. Please sign in again.');
+      }
+
+      // Fetch Stream token from backend
+      const streamToken = await fetchStreamToken(clerkToken);
+
+      // Cache the token
+      const expiresAt = getTokenExpiry(streamToken);
+      tokenCacheRef.current = { token: streamToken, expiresAt };
+
+      // Schedule proactive refresh
+      const timeUntilRefresh = expiresAt - Date.now() - TOKEN_REFRESH_BUFFER_MS;
+      if (timeUntilRefresh > 0) {
+        if (refreshTimerRef.current) clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = setTimeout(() => {
+          // Proactively refresh before expiry
+          tokenProvider().catch(console.error);
+        }, timeUntilRefresh);
+      }
+
+      // Reset retry count on success
+      retryCountRef.current = 0;
+      return streamToken;
+
+    } catch (error: any) {
+      // Handle 401 errors specially
+      if (error?.message?.includes('401') || error?.message?.includes('Unauthorized')) {
+        setError('Authentication failed. Please sign in again.');
+        retryCountRef.current = 0; // Allow retry after re-auth
+        throw error;
+      }
+
+      console.error('Error fetching Stream token:', {
+        message: error?.message,
+        retryCount: retryCountRef.current,
+      });
+
+      // Retry with exponential backoff
+      if (retryCountRef.current < MAX_RETRIES) {
+        await new Promise(resolve =>
+          setTimeout(resolve, RETRY_DELAY_MS * Math.pow(2, retryCountRef.current - 1))
+        );
+        return tokenProvider();
+      }
+
+      setError(`Failed to fetch Stream token: ${error?.message || 'Unknown error'}`);
+      throw error;
+
+    } finally {
+      isRefreshingRef.current = false;
+    }
+  }, [getFreshClerkToken, fetchStreamToken, getTokenExpiry]);
+
+  // Get user display name
+  const getUserDisplayName = useCallback(() => {
+    if (user?.firstName) {
+      return user.lastName
+        ? `${user.firstName} ${user.lastName}`.trim()
+        : user.firstName;
+    }
+    return user?.username || user?.emailAddresses?.[0]?.emailAddress?.split('@')[0] || 'User';
+  }, [user]);
+
+  // Initialize client
   useEffect(() => {
     if (!isLoaded || !user) return;
     if (!API_KEY) {
@@ -28,172 +186,80 @@ const StreamVideoProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
+    let mounted = true;
+
     const initializeClient = async () => {
       try {
-        // Get Clerk session token with "meet" template to include correct audience claim
-        let clerkToken = await getToken({ template: "meet" });
-        
-        // Fallback: try without template if template version fails
-        if (!clerkToken || typeof clerkToken !== 'string') {
-          console.warn('Token with template "meet" not available, trying without template...');
-          clerkToken = await getToken();
-        }
-        
-        // Validate token format
-        if (!clerkToken || typeof clerkToken !== 'string') {
-          console.warn('No valid Clerk token available, user might not be authenticated', {
-            tokenType: typeof clerkToken,
-            isNull: clerkToken === null,
-            isUndefined: clerkToken === undefined,
-          });
-          return; // Don't initialize if no token
-        }
-
-        // Validate JWT format
-        const tokenParts = clerkToken.split('.');
-        if (tokenParts.length !== 3) {
-          console.error('Initial Clerk token does not have valid JWT format:', {
-            parts: tokenParts.length,
-            tokenLength: clerkToken.length,
-          });
-          setError('Invalid authentication token. Please sign in again.');
+        // Verify we can get a token before initializing
+        const initialToken = await getFreshClerkToken();
+        if (!initialToken) {
+          if (mounted) setError('Unable to authenticate. Please sign in again.');
           return;
         }
-
-        // Create token provider that fetches from backend
-        // Track retry attempts to prevent infinite loops
-        const MAX_RETRIES = 3;
-        
-        const tokenProvider = async () => {
-          // Prevent infinite retry loops
-          if (retryCountRef.current >= MAX_RETRIES) {
-            const errorMessage = `Failed to fetch Stream token after ${MAX_RETRIES} attempts. Please refresh the page.`;
-            console.error(errorMessage);
-            setError(errorMessage);
-            throw new Error(errorMessage);
-          }
-
-          try {
-            retryCountRef.current++;
-            
-            // Get a fresh token each time with "meet" template
-            let freshToken = await getToken({ template: "meet" });
-            
-            // Fallback: try without template if template version fails
-            if (!freshToken || typeof freshToken !== 'string') {
-              console.warn('Token with template "meet" failed, trying without template...');
-              freshToken = await getToken();
-            }
-            
-            // Validate token format before sending
-            if (!freshToken || typeof freshToken !== 'string') {
-              console.error('Invalid token from Clerk:', {
-                tokenType: typeof freshToken,
-                tokenValue: freshToken,
-                isNull: freshToken === null,
-                isUndefined: freshToken === undefined,
-              });
-              throw new Error('Failed to get valid authentication token from Clerk. Please sign in again.');
-            }
-
-            // Validate JWT format (should have 3 parts separated by dots)
-            const tokenParts = freshToken.split('.');
-            if (tokenParts.length !== 3) {
-              console.error('Token does not have valid JWT format:', {
-                parts: tokenParts.length,
-                tokenLength: freshToken.length,
-                tokenPreview: freshToken.substring(0, 50),
-                tokenStartsWith: freshToken.substring(0, 10),
-              });
-              throw new Error('Invalid JWT token format from Clerk. Please sign in again.');
-            }
-
-            const response = await apiClient.post<{ token: string }>(
-              '/stream/token',
-              {},
-              freshToken
-            );
-
-            // Validate response
-            if (!response || !response.token || typeof response.token !== 'string') {
-              throw new Error('Invalid token response from backend');
-            }
-
-            // Reset retry count on success
-            retryCountRef.current = 0;
-            return response.token;
-          } catch (error: any) {
-            // Check if it's a 401 error (authentication issue)
-            if (error?.message?.includes('401') || error?.message?.includes('Unauthorized')) {
-              const errorMessage = 'Authentication failed. Please sign in again.';
-              console.error('Authentication error:', {
-                message: error?.message,
-                retryCount: retryCountRef.current,
-              });
-              setError(errorMessage);
-              retryCountRef.current = 0; // Reset on auth error to allow retry after re-auth
-              throw new Error(errorMessage);
-            }
-
-            // For other errors, log and throw
-            console.error('Error fetching Stream token:', {
-              message: error?.message,
-              stack: error?.stack,
-              retryCount: retryCountRef.current,
-              maxRetries: MAX_RETRIES,
-            });
-
-            // If we've exhausted retries, set error state
-            if (retryCountRef.current >= MAX_RETRIES) {
-              const errorMessage = `Failed to fetch Stream token: ${error?.message || 'Unknown error'}. Please check your connection and try refreshing the page.`;
-              setError(errorMessage);
-              throw new Error(errorMessage);
-            }
-
-            // Otherwise, throw to allow retry (Stream SDK will retry)
-            throw error;
-          }
-        };
-
-        // Get user's full name (firstName + lastName or firstName only)
-        const getUserDisplayName = () => {
-          if (user?.firstName) {
-            return user.lastName 
-              ? `${user.firstName} ${user.lastName}`.trim()
-              : user.firstName;
-          }
-          return user?.username || user?.emailAddresses?.[0]?.emailAddress?.split('@')[0] || 'User';
-        };
 
         const client = new StreamVideoClient({
           apiKey: API_KEY,
           user: {
-            id: user?.id,
+            id: user.id,
             name: getUserDisplayName(),
-            image: user?.imageUrl,
+            image: user.imageUrl,
           },
           tokenProvider,
         });
 
-        setVideoClient(client);
-        setError(null);
-        retryCountRef.current = 0; // Reset retry count when client is initialized
+        if (mounted) {
+          setVideoClient(client);
+          setError(null);
+          retryCountRef.current = 0;
+        }
       } catch (err: any) {
         console.error('Error initializing Stream client:', err);
-        setError(err?.message || 'Failed to initialize video client');
-        retryCountRef.current = 0; // Reset retry count on error
+        if (mounted) {
+          setError(err?.message || 'Failed to initialize video client');
+          retryCountRef.current = 0;
+        }
       }
     };
 
     initializeClient();
-  }, [user, isLoaded, getToken]);
+
+    return () => {
+      mounted = false;
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+      }
+    };
+  }, [user, isLoaded, getFreshClerkToken, getUserDisplayName, tokenProvider]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (refreshTimerRef.current) {
+        clearTimeout(refreshTimerRef.current);
+      }
+      if (videoClient) {
+        videoClient.disconnectUser();
+      }
+    };
+  }, [videoClient]);
 
   if (error) {
     return (
-      <div className="flex items-center justify-center h-screen text-white">
-        <div className="text-center">
-          <p className="text-red-500 mb-2">Error: {error}</p>
-          <p className="text-sm text-gray-400">Please check your configuration and try again.</p>
+      <div className="flex items-center justify-center h-screen bg-bg-secondary">
+        <div className="text-center p-6 max-w-md">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-red-100 flex items-center justify-center">
+            <svg className="w-8 h-8 text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          </div>
+          <h2 className="text-lg font-semibold text-text-primary mb-2">Connection Error</h2>
+          <p className="text-text-secondary mb-4">{error}</p>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-6 py-2 bg-google-blue text-white rounded-full hover:bg-google-blue-hover transition-colors"
+          >
+            Refresh Page
+          </button>
         </div>
       </div>
     );

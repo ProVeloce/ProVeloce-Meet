@@ -219,3 +219,146 @@ export const cardMotionProps = {
         transition: { duration: timing.instant, ease: easing.out }
     },
 };
+
+// ============================================
+// CINEMATIC POLISH VARIANTS
+// ============================================
+
+// Page fade-slide-in (first load only)
+export const pageEnterVariants = {
+    hidden: {
+        opacity: 0,
+        y: 12,
+    },
+    visible: {
+        opacity: 1,
+        y: 0,
+        transition: {
+            duration: timing.normal,
+            ease: easing.smooth,
+        }
+    },
+};
+
+// Active speaker glow ring + soft pulse
+export const activeSpeakerVariants = {
+    inactive: {
+        boxShadow: '0 0 0 0 rgba(26, 115, 232, 0)',
+        scale: 1,
+    },
+    active: {
+        boxShadow: [
+            '0 0 0 0 rgba(26, 115, 232, 0.4)',
+            '0 0 0 8px rgba(26, 115, 232, 0.2)',
+            '0 0 0 4px rgba(26, 115, 232, 0.3)',
+        ],
+        scale: 1,
+        transition: {
+            boxShadow: {
+                duration: 1.5,
+                repeat: Infinity,
+                repeatType: 'reverse' as const,
+                ease: 'easeInOut',
+            },
+        },
+    },
+};
+
+// Theme fade-dim transition (250ms)
+export const themeTransitionVariants = {
+    initial: { opacity: 1 },
+    switching: {
+        opacity: 0.85,
+        transition: { duration: 0.125 }
+    },
+    complete: {
+        opacity: 1,
+        transition: { duration: 0.125 }
+    },
+};
+
+// Toolbar slide-in (desktop hover)
+export const toolbarVariants = {
+    hidden: {
+        y: 20,
+        opacity: 0,
+    },
+    visible: {
+        y: 0,
+        opacity: 1,
+        transition: {
+            duration: timing.fast,
+            ease: easing.out,
+        },
+    },
+    exit: {
+        y: 20,
+        opacity: 0,
+        transition: {
+            duration: timing.fast,
+            ease: easing.out,
+        },
+    },
+};
+
+// Video tile grid entrance
+export const videoTileVariants = {
+    hidden: {
+        opacity: 0,
+        scale: 0.92,
+    },
+    visible: (i: number) => ({
+        opacity: 1,
+        scale: 1,
+        transition: {
+            duration: timing.normal,
+            delay: i * stagger.fast,
+            ease: easing.smooth,
+        }
+    }),
+};
+
+// Cursor drift effect for cards (subtle parallax)
+export const cursorDriftConfig = {
+    maxRotate: 2,      // degrees
+    maxTranslate: 3,   // pixels
+    perspective: 1000, // pixels
+    smooth: 0.1,       // smoothing factor
+};
+
+// ============================================
+// PERFORMANCE UTILITIES
+// ============================================
+
+// Detect low-power mode or mobile
+export const isLowPowerDevice = (): boolean => {
+    if (typeof window === 'undefined') return false;
+
+    // Check for mobile/tablet
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(
+        navigator.userAgent
+    );
+
+    // Check for low hardware concurrency
+    const lowCores = navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4;
+
+    // Check for battery saver (if API available)
+    const batterySaver = 'getBattery' in navigator;
+
+    return isMobile || lowCores || prefersReducedMotion();
+};
+
+// Get safe motion props (disables on low-power)
+export const getSafeMotionProps = <T extends Record<string, unknown>>(
+    props: T
+): T | Record<string, never> => {
+    if (isLowPowerDevice()) return {};
+    return props;
+};
+
+// GPU acceleration style
+export const gpuAccelerated = {
+    transform: 'translate3d(0,0,0)',
+    willChange: 'transform, opacity',
+    backfaceVisibility: 'hidden' as const,
+} as const;
