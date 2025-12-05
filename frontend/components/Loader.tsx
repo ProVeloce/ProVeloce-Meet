@@ -1,14 +1,13 @@
-import Image from 'next/image';
+'use client';
 
 const Loader = () => {
   return (
-    <div className="flex-center h-screen w-full">
-      <Image
-        src="/icons/loading-circle.svg"
-        alt="Loading..."
-        width={50}
-        height={50}
-      />
+    <div className="flex h-screen w-full items-center justify-center bg-meeting">
+      <div className="loader-dots">
+        <span></span>
+        <span></span>
+        <span></span>
+      </div>
     </div>
   );
 };

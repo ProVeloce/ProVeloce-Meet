@@ -1,55 +1,46 @@
 'use client';
-import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-
-import { sidebarLinks } from '@/constants';
+import { Home, Calendar, Clock, Video, Plus } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+const navItems = [
+  { label: 'Home', route: '/home', icon: Home },
+  { label: 'Upcoming', route: '/home/upcoming', icon: Calendar },
+  { label: 'Previous', route: '/home/previous', icon: Clock },
+  { label: 'Recordings', route: '/home/recordings', icon: Video },
+  { label: 'Personal Room', route: '/home/personal-room', icon: Plus },
+];
 
 const Sidebar = () => {
   const pathname = usePathname();
 
   return (
-    <aside 
-      className="sticky left-0 top-16 flex h-[calc(100vh-4rem)] w-fit flex-col justify-between bg-white border-r border-light-4 p-4 pt-6 text-text-primary max-sm:hidden lg:w-[240px]"
+    <aside
+      className="sticky left-0 top-16 flex h-[calc(100vh-4rem)] w-fit flex-col bg-white border-r border-border-lighter p-3 max-sm:hidden lg:w-[240px]"
       role="navigation"
       aria-label="Sidebar navigation"
     >
-      <nav className="flex flex-1 flex-col gap-2" aria-label="Main navigation">
-        {sidebarLinks.map((item) => {
-          const isActive = pathname === item.route || pathname.startsWith(`${item.route}/`);
-          
+      <nav className="flex flex-1 flex-col gap-1" aria-label="Main navigation">
+        {navItems.map((item) => {
+          const isActive = pathname === item.route ||
+            (item.route !== '/home' && pathname.startsWith(item.route));
+          const Icon = item.icon;
+
           return (
             <Link
               href={item.route}
               key={item.label}
               className={cn(
-                'flex gap-3 items-center px-4 py-3 rounded-lg justify-start transition-all duration-200',
-                'hover:bg-light-2 focus:outline-none focus:ring-2 focus:ring-google-blue focus:ring-offset-2',
-                {
-                  'bg-google-blue text-white shadow-sm': isActive,
-                  'text-text-secondary hover:text-text-primary': !isActive,
-                }
+                'flex gap-3 items-center px-3 py-2.5 rounded-full transition-colors',
+                isActive
+                  ? 'bg-google-blue-light text-google-blue font-medium'
+                  : 'text-text-secondary hover:bg-bg-tertiary'
               )}
               aria-current={isActive ? 'page' : undefined}
             >
-              <Image
-                src={item.imgURL}
-                alt=""
-                width={20}
-                height={20}
-                className={cn('transition-all duration-200', {
-                  'icon-white': isActive,
-                  'icon-blue': !isActive,
-                })}
-                aria-hidden="true"
-              />
-              <span className={cn('text-base font-medium max-lg:hidden transition-colors', {
-                'text-white': isActive,
-                'text-text-primary': !isActive,
-              })}>
-                {item.label}
-              </span>
+              <Icon className="w-5 h-5" />
+              <span className="text-sm max-lg:hidden">{item.label}</span>
             </Link>
           );
         })}

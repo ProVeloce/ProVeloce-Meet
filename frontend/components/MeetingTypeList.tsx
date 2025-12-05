@@ -1,364 +1,371 @@
-/* eslint-disable camelcase */
 'use client';
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-
-import HomeCard from './HomeCard';
-import MeetingModal from './MeetingModal';
-import { Call, useStreamVideoClient } from '@stream-io/video-react-sdk';
 import { useUser, useAuth } from '@clerk/nextjs';
-import Loader from './Loader';
-import { Textarea } from './ui/textarea';
-import ReactDatePicker from 'react-datepicker';
-import { useToast } from './ui/use-toast';
-import RoomCodeInput from './RoomCodeInput';
+import { Video, Plus, Calendar, Link2, UserPlus, X, Copy, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { meetingApi } from '@/lib/meeting-api';
-// Room code utilities are available but not currently used in this component
-
-const initialValues = {
-  dateTime: new Date(),
-  description: '',
-  link: '',
-};
+import { useToast } from './ui/use-toast';
 
 const MeetingTypeList = () => {
   const router = useRouter();
-  const [meetingState, setMeetingState] = useState<
-    'isScheduleMeeting' | 'isJoiningMeeting' | 'isInstantMeeting' | undefined
-  >(undefined);
-  const [values, setValues] = useState(initialValues);
-  const [callDetail, setCallDetail] = useState<Call>();
-  const [roomCode, setRoomCode] = useState<string>('');
-  const [isRoomCodeValid, setIsRoomCodeValid] = useState(false);
-  const [isCreatingInstant, setIsCreatingInstant] = useState(false);
-  const client = useStreamVideoClient();
-  const { user, isLoaded } = useUser();
+  const { user } = useUser();
   const { getToken } = useAuth();
   const { toast } = useToast();
 
-  // Get user display name (same logic as PersonalRoom)
+  const [showNewMeetingMenu, setShowNewMeetingMenu] = useState(false);
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [showInstantModal, setShowInstantModal] = useState(false);
+  const [joinCode, setJoinCode] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
+  const [createdMeetingLink, setCreatedMeetingLink] = useState('');
+  const [copiedLink, setCopiedLink] = useState(false);
+
+  // Schedule form state
+  const [scheduleTitle, setScheduleTitle] = useState('');
+  const [scheduleDate, setScheduleDate] = useState('');
+  const [scheduleTime, setScheduleTime] = useState('');
+
   const getDisplayName = () => {
-    if (!user) return 'User';
-    return user.firstName 
-      ? `${user.firstName}${user.lastName ? ` ${user.lastName}` : ''}`
-      : (user.username || user.emailAddresses[0]?.emailAddress?.split('@')[0] || 'User');
+    if (user?.firstName) {
+      return user.lastName
+        ? `${user.firstName} ${user.lastName}`.trim()
+        : user.firstName;
+    }
+    return user?.username || 'User';
   };
 
-  // Create instant meeting (same logic as PersonalRoom)
   const createInstantMeeting = async () => {
-    if (!client || !user) {
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to create a meeting",
-        variant: "destructive",
-      });
-      router.push('/sign-in');
-      return;
-    }
+    if (!user) return;
 
-    setIsCreatingInstant(true);
-
+    setIsCreating(true);
     try {
       const token = await getToken({ template: "meet" });
-      if (!token) {
-        toast({
-          title: "Authentication required",
-          description: "Please sign in to create a meeting",
-          variant: "destructive",
-        });
-        router.push('/sign-in');
-        setIsCreatingInstant(false);
-        return;
-      }
+      if (!token) throw new Error('No auth token');
 
-      const displayName = getDisplayName();
-
-      // Create meeting in database (same as PersonalRoom)
-      const newMeeting = await meetingApi.createMeeting({
-        title: `${displayName}'s Meeting Room`,
+      const meeting = await meetingApi.createMeeting({
+        title: `${getDisplayName()}'s Meeting`,
         type: 'instant',
       }, token);
 
-      // Create Stream call using the streamCallId from database
-      const newCall = client.call("default", newMeeting.streamCallId);
+      const baseUrl = typeof window !== 'undefined'
+        ? window.location.origin
+        : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
-      await newCall.getOrCreate({
-        data: {
-          starts_at: new Date().toISOString(),
-        },
-      });
-
-      // Close modal and navigate to meeting room
-      setMeetingState(undefined);
-      router.push(`/meeting/${newMeeting.streamCallId}`);
-      
+      setCreatedMeetingLink(`${baseUrl}/meeting/${meeting.streamCallId}`);
+      setShowNewMeetingMenu(false);
+      setShowInstantModal(true);
+    } catch (error) {
+      console.error('Error creating meeting:', error);
       toast({
-        title: "Meeting Created",
-        description: "Your instant meeting has been created successfully",
-      });
-    } catch (error: any) {
-      console.error('Error creating instant meeting:', error);
-      toast({
-        title: "Failed to start meeting",
-        description: error.message || "An error occurred while creating the meeting",
-        variant: "destructive",
+        title: 'Error',
+        description: 'Failed to create meeting. Please try again.',
+        variant: 'destructive',
       });
     } finally {
-      setIsCreatingInstant(false);
+      setIsCreating(false);
     }
   };
 
-  // Create scheduled meeting
-  const createMeeting = async () => {
-    if (!client || !user) {
-      toast({
-        title: "Authentication required",
-        description: "Please sign in to create a meeting",
-        variant: "destructive",
-      });
-      router.push('/sign-in');
-      return;
-    }
+  const createScheduledMeeting = async () => {
+    if (!user || !scheduleDate || !scheduleTime) return;
 
+    setIsCreating(true);
     try {
       const token = await getToken({ template: "meet" });
-      if (!token) {
-        toast({
-          title: "Authentication required",
-          description: "Please sign in to create a meeting",
-          variant: "destructive",
-        });
-        router.push('/sign-in');
-        return;
-      }
+      if (!token) throw new Error('No auth token');
 
-      if (!values.dateTime) {
-        toast({ title: 'Please select a date and time' });
-        return;
-      }
+      const scheduledDateTime = new Date(`${scheduleDate}T${scheduleTime}`);
 
-      const displayName = getDisplayName();
-      const description = values.description || 'Scheduled Meeting';
-
-      // Create meeting in database
-      const newMeeting = await meetingApi.createMeeting({
-        title: description,
-        description,
+      const meeting = await meetingApi.createMeeting({
+        title: scheduleTitle || `${getDisplayName()}'s Meeting`,
         type: 'scheduled',
-        scheduledTime: values.dateTime.toISOString(),
+        scheduledTime: scheduledDateTime.toISOString(),
       }, token);
 
-      // Create Stream call using the streamCallId from database
-      const newCall = client.call("default", newMeeting.streamCallId);
+      const baseUrl = typeof window !== 'undefined'
+        ? window.location.origin
+        : process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000';
 
-      await newCall.getOrCreate({
-        data: {
-          starts_at: values.dateTime.toISOString(),
-          custom: {
-            description,
-          },
-        },
-      });
+      setCreatedMeetingLink(`${baseUrl}/meeting/${meeting.streamCallId}`);
+      setShowScheduleModal(false);
+      setShowInstantModal(true);
 
-      setCallDetail(newCall);
+      // Reset form
+      setScheduleTitle('');
+      setScheduleDate('');
+      setScheduleTime('');
+    } catch (error) {
+      console.error('Error scheduling meeting:', error);
       toast({
-        title: 'Meeting Created',
-        description: 'Your scheduled meeting has been created successfully',
+        title: 'Error',
+        description: 'Failed to schedule meeting. Please try again.',
+        variant: 'destructive',
       });
-    } catch (error: any) {
-      console.error('Error creating scheduled meeting:', error);
-      toast({ 
-        title: 'Failed to create Meeting',
-        description: error.message || "An error occurred while creating the meeting",
-        variant: "destructive",
-      });
+    } finally {
+      setIsCreating(false);
     }
   };
 
-  if (!isLoaded || !client || !user) return <Loader />;
+  const joinMeeting = () => {
+    if (!joinCode.trim()) return;
 
-  const meetingLink = `${process.env.NEXT_PUBLIC_BASE_URL}/meeting/${callDetail?.id}`;
+    // Check if it's a full URL or just a code
+    if (joinCode.includes('/meeting/')) {
+      const meetingId = joinCode.split('/meeting/')[1]?.split('?')[0];
+      if (meetingId) {
+        router.push(`/meeting/${meetingId}`);
+        return;
+      }
+    }
+
+    // Treat as room code or meeting ID
+    router.push(`/meeting/${joinCode.trim()}`);
+  };
+
+  const copyMeetingLink = () => {
+    navigator.clipboard.writeText(createdMeetingLink);
+    setCopiedLink(true);
+    setTimeout(() => setCopiedLink(false), 2000);
+  };
+
+  const startMeeting = () => {
+    const meetingId = createdMeetingLink.split('/meeting/')[1];
+    if (meetingId) {
+      router.push(`/meeting/${meetingId}`);
+    }
+  };
 
   return (
-    <section className="grid grid-cols-1 gap-4 sm:gap-5 md:grid-cols-2 xl:grid-cols-4" aria-label="Meeting options">
-      <HomeCard
-        img="/icons/add-meeting.svg"
-        title="New Meeting"
-        description="Start an instant meeting"
-        handleClick={() => setMeetingState('isInstantMeeting')}
-      />
-      <HomeCard
-        img="/icons/join-meeting.svg"
-        title="Join Meeting"
-        description="via invitation link"
-        className="border-google-blue border-2"
-        handleClick={() => setMeetingState('isJoiningMeeting')}
-      />
-      <HomeCard
-        img="/icons/schedule.svg"
-        title="Schedule Meeting"
-        description="Plan your meeting"
-        handleClick={() => setMeetingState('isScheduleMeeting')}
-      />
-      <HomeCard
-        img="/icons/recordings.svg"
-        title="View Recordings"
-        description="Meeting Recordings"
-        handleClick={() => router.push('/recordings')}
-      />
+    <div className="space-y-6">
+      {/* Main Actions Row */}
+      <div className="flex flex-wrap gap-4">
+        {/* New Meeting Button with Dropdown */}
+        <div className="relative">
+          <button
+            onClick={() => setShowNewMeetingMenu(!showNewMeetingMenu)}
+            className="flex items-center gap-2 bg-google-blue hover:bg-google-blue-hover text-white px-6 py-3 rounded-lg font-medium transition-colors"
+          >
+            <Video className="w-5 h-5" />
+            New meeting
+          </button>
 
-      {!callDetail ? (
-        <MeetingModal
-          isOpen={meetingState === 'isScheduleMeeting'}
-          onClose={() => setMeetingState(undefined)}
-          title="Create Meeting"
-          handleClick={createMeeting}
-        >
-          <div className="flex flex-col gap-2.5">
-            <label className="text-sm font-medium text-text-primary">
-              Add a description
-            </label>
-            <Textarea
-              className="border border-light-4 bg-white text-text-primary placeholder:text-text-tertiary focus-visible:ring-2 focus-visible:ring-google-blue focus-visible:ring-offset-0 min-h-[100px]"
-              placeholder="Enter meeting description..."
-              onChange={(e) =>
-                setValues({ ...values, description: e.target.value })
-              }
+          {showNewMeetingMenu && (
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setShowNewMeetingMenu(false)}
+              />
+              <div className="absolute top-full left-0 mt-2 w-64 bg-white rounded-lg shadow-lg border border-border-lighter py-2 z-50 animate-fadeIn">
+                <button
+                  onClick={createInstantMeeting}
+                  disabled={isCreating}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-bg-tertiary text-left transition-colors"
+                >
+                  <Link2 className="w-5 h-5 text-text-secondary" />
+                  <div>
+                    <p className="font-medium text-text-primary">Create a meeting for later</p>
+                    <p className="text-sm text-text-secondary">Get a link to share</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    setShowNewMeetingMenu(false);
+                    createInstantMeeting().then(() => {
+                      if (createdMeetingLink) startMeeting();
+                    });
+                  }}
+                  disabled={isCreating}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-bg-tertiary text-left transition-colors"
+                >
+                  <Plus className="w-5 h-5 text-text-secondary" />
+                  <div>
+                    <p className="font-medium text-text-primary">Start an instant meeting</p>
+                    <p className="text-sm text-text-secondary">Start meeting now</p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => {
+                    setShowNewMeetingMenu(false);
+                    setShowScheduleModal(true);
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 hover:bg-bg-tertiary text-left transition-colors"
+                >
+                  <Calendar className="w-5 h-5 text-text-secondary" />
+                  <div>
+                    <p className="font-medium text-text-primary">Schedule in calendar</p>
+                    <p className="text-sm text-text-secondary">Plan your meeting</p>
+                  </div>
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Join Meeting Input */}
+        <div className="flex items-center gap-2">
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Enter a code or link"
+              value={joinCode}
+              onChange={(e) => setJoinCode(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && joinMeeting()}
+              className="w-64 px-4 py-3 border border-border-light rounded-lg text-text-primary placeholder:text-text-tertiary focus:outline-none focus:border-google-blue focus:ring-1 focus:ring-google-blue"
             />
           </div>
-          <div className="flex w-full flex-col gap-2.5">
-            <label className="text-sm font-medium text-text-primary">
-              Select Date and Time
-            </label>
-            <ReactDatePicker
-              selected={values.dateTime}
-              onChange={(date) => setValues({ ...values, dateTime: date! })}
-              showTimeSelect
-              timeFormat="HH:mm"
-              timeIntervals={15}
-              timeCaption="time"
-              dateFormat="MMMM d, yyyy h:mm aa"
-              className="w-full rounded-md border border-light-4 bg-white text-text-primary p-3 focus:outline-none focus:ring-2 focus:ring-google-blue focus:ring-offset-0"
-            />
+          <button
+            onClick={joinMeeting}
+            disabled={!joinCode.trim()}
+            className={cn(
+              "px-6 py-3 rounded-lg font-medium transition-colors",
+              joinCode.trim()
+                ? "text-google-blue hover:bg-google-blue-light"
+                : "text-text-tertiary cursor-not-allowed"
+            )}
+          >
+            Join
+          </button>
+        </div>
+      </div>
+
+      {/* Schedule Modal */}
+      {showScheduleModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-full max-w-md p-6 animate-fadeIn">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-medium text-text-primary">Schedule a meeting</h2>
+              <button
+                onClick={() => setShowScheduleModal(false)}
+                className="p-1 hover:bg-bg-tertiary rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-text-secondary" />
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-text-secondary mb-1">
+                  Meeting title (optional)
+                </label>
+                <input
+                  type="text"
+                  value={scheduleTitle}
+                  onChange={(e) => setScheduleTitle(e.target.value)}
+                  placeholder={`${getDisplayName()}'s Meeting`}
+                  className="w-full px-4 py-2 border border-border-light rounded-lg focus:outline-none focus:border-google-blue focus:ring-1 focus:ring-google-blue"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-text-secondary mb-1">
+                    Date
+                  </label>
+                  <input
+                    type="date"
+                    value={scheduleDate}
+                    onChange={(e) => setScheduleDate(e.target.value)}
+                    min={new Date().toISOString().split('T')[0]}
+                    className="w-full px-4 py-2 border border-border-light rounded-lg focus:outline-none focus:border-google-blue focus:ring-1 focus:ring-google-blue"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-text-secondary mb-1">
+                    Time
+                  </label>
+                  <input
+                    type="time"
+                    value={scheduleTime}
+                    onChange={(e) => setScheduleTime(e.target.value)}
+                    className="w-full px-4 py-2 border border-border-light rounded-lg focus:outline-none focus:border-google-blue focus:ring-1 focus:ring-google-blue"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+                <button
+                  onClick={() => setShowScheduleModal(false)}
+                  className="px-4 py-2 text-text-secondary hover:bg-bg-tertiary rounded-lg transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={createScheduledMeeting}
+                  disabled={!scheduleDate || !scheduleTime || isCreating}
+                  className="px-6 py-2 bg-google-blue hover:bg-google-blue-hover text-white rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isCreating ? 'Creating...' : 'Schedule'}
+                </button>
+              </div>
+            </div>
           </div>
-        </MeetingModal>
-      ) : (
-        <MeetingModal
-          isOpen={meetingState === 'isScheduleMeeting'}
-          onClose={() => setMeetingState(undefined)}
-          title="Meeting Created"
-          handleClick={() => {
-            navigator.clipboard.writeText(meetingLink);
-            toast({ title: 'Link Copied' });
-          }}
-          image={'/icons/checked.svg'}
-          buttonIcon="/icons/copy.svg"
-          className="text-center"
-          buttonText="Copy Meeting Link"
-        />
+        </div>
       )}
 
-      <MeetingModal
-        isOpen={meetingState === 'isJoiningMeeting'}
-        onClose={() => {
-          setMeetingState(undefined);
-          setRoomCode('');
-          setIsRoomCodeValid(false);
-        }}
-        title="Join Meeting"
-        className="text-center"
-        buttonText="Join Meeting"
-        buttonDisabled={!isRoomCodeValid}
-        handleClick={async () => {
-          try {
-            if (!isRoomCodeValid || !roomCode) {
-              toast({ 
-                title: 'Invalid room code',
-                description: 'Please enter a valid room code in XXX-XXXX-XXX format'
-              });
-              return;
-            }
+      {/* Meeting Created Modal */}
+      {showInstantModal && createdMeetingLink && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg w-full max-w-md p-6 animate-fadeIn">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-xl font-medium text-text-primary">Your meeting is ready</h2>
+              <button
+                onClick={() => {
+                  setShowInstantModal(false);
+                  setCreatedMeetingLink('');
+                }}
+                className="p-1 hover:bg-bg-tertiary rounded-full transition-colors"
+              >
+                <X className="w-5 h-5 text-text-secondary" />
+              </button>
+            </div>
 
-            const token = await getToken({ template: "meet" });
-            if (!token) {
-              toast({ title: 'Authentication required' });
-              return;
-            }
+            <p className="text-text-secondary mb-4">
+              Share this link with others you want in the meeting
+            </p>
 
-            const { meetingApi } = await import('@/lib/meeting-api');
-            try {
-              // Try to find meeting by room code
-              const meeting = await meetingApi.getMeetingById(roomCode, token);
-              
-              // Check if meeting is still active
-              if (meeting.status === 'ended' || meeting.status === 'cancelled') {
-                toast({ 
-                  title: 'Meeting has ended',
-                  description: 'This meeting is no longer active'
-                });
-                return;
-              }
+            <div className="flex items-center gap-2 p-3 bg-bg-tertiary rounded-lg mb-6">
+              <input
+                type="text"
+                readOnly
+                value={createdMeetingLink}
+                className="flex-1 bg-transparent text-text-primary text-sm truncate outline-none"
+              />
+              <button
+                onClick={copyMeetingLink}
+                className="p-2 hover:bg-bg-hover rounded transition-colors"
+              >
+                {copiedLink ? (
+                  <Check className="w-4 h-4 text-success" />
+                ) : (
+                  <Copy className="w-4 h-4 text-text-secondary" />
+                )}
+              </button>
+            </div>
 
-              // Navigate to meeting
-              router.push(`/meeting/${meeting.streamCallId}`);
-              setMeetingState(undefined);
-              setRoomCode('');
-            } catch (error: any) {
-              if (error.message?.includes('404') || error.message?.includes('not found')) {
-                toast({ 
-                  title: 'Meeting not found',
-                  description: 'Please check the room code and try again'
-                });
-              } else {
-                toast({ 
-                  title: 'Failed to join meeting',
-                  description: error.message || 'An error occurred'
-                });
-              }
-            }
-          } catch (error: any) {
-            console.error('Error joining meeting:', error);
-            toast({ 
-              title: 'Failed to join meeting',
-              description: error.message || 'An error occurred'
-            });
-          }
-        }}
-      >
-        <div className="flex flex-col gap-2.5">
-          <RoomCodeInput
-            value={roomCode}
-            onChange={(value) => setRoomCode(value)}
-            placeholder="XXX-XXXX-XXX"
-            className="border border-light-4 bg-white text-text-primary placeholder:text-text-tertiary focus-visible:ring-2 focus-visible:ring-google-blue focus-visible:ring-offset-0"
-            onValidationChange={setIsRoomCodeValid}
-          />
-          <p className={cn("text-sm", {
-            "text-google-green": isRoomCodeValid,
-            "text-text-tertiary": !isRoomCodeValid,
-          })}>
-            {isRoomCodeValid 
-              ? '✓ Valid room code format' 
-              : 'Enter room code in XXX-XXXX-XXX format'}
-          </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowInstantModal(false);
+                  setCreatedMeetingLink('');
+                }}
+                className="px-4 py-2 text-text-secondary hover:bg-bg-tertiary rounded-lg transition-colors"
+              >
+                Close
+              </button>
+              <button
+                onClick={startMeeting}
+                className="px-6 py-2 bg-google-blue hover:bg-google-blue-hover text-white rounded-lg font-medium transition-colors"
+              >
+                Join now
+              </button>
+            </div>
+          </div>
         </div>
-      </MeetingModal>
-
-      <MeetingModal
-        isOpen={meetingState === 'isInstantMeeting'}
-        onClose={() => {
-          setMeetingState(undefined);
-          setIsCreatingInstant(false);
-        }}
-        title="Start an Instant Meeting"
-        className="text-center"
-        buttonText={isCreatingInstant ? "Creating..." : "Start Meeting"}
-        buttonDisabled={isCreatingInstant}
-        handleClick={createInstantMeeting}
-      />
-    </section>
+      )}
+    </div>
   );
 };
 

@@ -2,71 +2,58 @@
 
 import { useEffect, useState } from 'react';
 import MeetingTypeList from '@/components/MeetingTypeList';
-import DashboardClock from '@/components/DashboardClock';
-import UpcomingMeeting from '@/components/UpcomingMeeting';
-import SEOHead from '@/components/SEOHead';
-import { generateSoftwareAppSchema, SEO_KEYWORDS } from '@/lib/seo-utils';
+import { useUser } from '@clerk/nextjs';
 
 const Home = () => {
-  const [date, setDate] = useState<string>('');
+  const { user } = useUser();
+  const [currentTime, setCurrentTime] = useState<string>('');
+  const [currentDate, setCurrentDate] = useState<string>('');
 
   useEffect(() => {
-    const updateDate = () => {
+    const updateDateTime = () => {
       const now = new Date();
-      setDate(new Intl.DateTimeFormat('en-US', { dateStyle: 'full' }).format(now));
+      setCurrentTime(now.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      }));
+      setCurrentDate(now.toLocaleDateString('en-US', {
+        weekday: 'long',
+        month: 'long',
+        day: 'numeric'
+      }));
     };
 
-    updateDate();
-    // Update date at midnight
-    const now = new Date();
-    const msUntilMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate() + 1).getTime() - now.getTime();
-    
-    let intervalId: NodeJS.Timeout | null = null;
-    
-    const timeoutId = setTimeout(() => {
-      updateDate();
-      intervalId = setInterval(updateDate, 86400000); // 24 hours
-    }, msUntilMidnight);
-
-    return () => {
-      clearTimeout(timeoutId);
-      if (intervalId) {
-        clearInterval(intervalId);
-      }
-    };
+    updateDateTime();
+    const interval = setInterval(updateDateTime, 1000);
+    return () => clearInterval(interval);
   }, []);
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL || 'https://meet.proveloce.com';
-  const structuredData = generateSoftwareAppSchema(baseUrl);
+  const greeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good morning';
+    if (hour < 17) return 'Good afternoon';
+    return 'Good evening';
+  };
 
   return (
-    <>
-      <SEOHead
-        description="Professional video conferencing software for businesses. Host secure online meetings with real-time collaboration, meeting recording, and participant analytics. Browser-based WebRTC solution."
-        keywords={[...SEO_KEYWORDS.primary, ...SEO_KEYWORDS.secondary]}
-        structuredData={structuredData}
-        canonicalUrl={baseUrl}
-      />
-      <section className="flex size-full flex-col gap-6 text-text-primary" role="main" aria-label="Home dashboard">
-        <div className="h-[280px] sm:h-[320px] w-full rounded-xl bg-gradient-to-br from-google-blue to-zoom-blue shadow-lg overflow-hidden" role="banner" aria-label="Hero section">
-          <div className="flex h-full flex-col justify-between p-6 sm:p-8 lg:p-11">
-            <div className="flex flex-col gap-2">
-              <h1 className="text-4xl sm:text-5xl lg:text-7xl font-extrabold tabular-nums text-white drop-shadow-sm" aria-live="polite">
-                <DashboardClock className="text-white" />
-              </h1>
-              <p className="text-base sm:text-lg lg:text-xl font-medium text-white/95" aria-label={`Current date: ${date}`}>
-                {date}
-              </p>
-              <UpcomingMeeting />
-            </div>
-          </div>
-        </div>
+    <main className="flex-1 p-6 md:p-8 lg:p-10 bg-bg-secondary min-h-screen">
+      {/* Header Section */}
+      <div className="mb-10">
+        <h1 className="text-2xl md:text-3xl font-normal text-text-primary mb-1">
+          {greeting()}{user?.firstName ? `, ${user.firstName}` : ''}
+        </h1>
+        <p className="text-text-secondary text-sm">
+          {currentTime} · {currentDate}
+        </p>
+      </div>
 
+      {/* Quick Actions */}
+      <div className="max-w-4xl">
         <MeetingTypeList />
-      </section>
-    </>
+      </div>
+    </main>
   );
 };
 
 export default Home;
-

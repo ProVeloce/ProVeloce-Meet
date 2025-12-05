@@ -6,9 +6,11 @@ import {
   useCall,
   useCallStateHooks,
 } from '@stream-io/video-react-sdk';
+import { Mic, MicOff, Video, VideoOff, Settings } from 'lucide-react';
 
 import Alert from './Alert';
 import { Button } from './ui/button';
+import { cn } from '@/lib/utils';
 
 // Error boundary for VideoPreview
 class VideoPreviewErrorBoundary extends Component<
@@ -31,12 +33,11 @@ class VideoPreviewErrorBoundary extends Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="flex h-[300px] w-[500px] items-center justify-center rounded-lg bg-dark-2">
-          <p className="text-gray-400">Camera preview unavailable</p>
+        <div className="flex h-full w-full items-center justify-center rounded-lg bg-surface">
+          <p className="text-white/50 text-sm">Camera preview unavailable</p>
         </div>
       );
     }
-
     return this.props.children;
   }
 }
@@ -49,57 +50,43 @@ const MeetingSetup = ({
   const call = useCall();
 
   if (!call) {
-    throw new Error(
-      'useStreamCall must be used within a StreamCall component.',
-    );
+    throw new Error('useStreamCall must be used within a StreamCall component.');
   }
 
-  // https://getstream.io/video/docs/react/guides/call-and-participant-state/#call-state
-  // Safely access call state hooks - they may not always be available
   const callStateHooks = useCallStateHooks();
-  
+
   let callStartsAt: Date | undefined;
   let callEndedAt: Date | undefined;
-  
-  // Try to get call start/end times from hooks if available
+
   try {
     if (callStateHooks && typeof callStateHooks.useCallStartsAt === 'function') {
-      const result = callStateHooks.useCallStartsAt();
-      callStartsAt = result;
+      callStartsAt = callStateHooks.useCallStartsAt();
     }
-  } catch (error) {
-    // Hook may not be available or call state not initialized
-    // This is okay - we'll just skip the scheduled time check
-  }
-  
+  } catch (error) { }
+
   try {
     if (callStateHooks && typeof callStateHooks.useCallEndedAt === 'function') {
-      const result = callStateHooks.useCallEndedAt();
-      callEndedAt = result;
+      callEndedAt = callStateHooks.useCallEndedAt();
     }
-  } catch (error) {
-    // Hook may not be available or call state not initialized
-    // This is okay - we'll just skip the ended check
-  }
-  
-  // Alternative: Try to get from call state directly if hooks didn't work
+  } catch (error) { }
+
   if (!callStartsAt && call?.state?.startsAt) {
     callStartsAt = new Date(call.state.startsAt);
   }
-  
+
   if (!callEndedAt && call?.state?.endedAt) {
     callEndedAt = new Date(call.state.endedAt);
   }
-  
-  const callTimeNotArrived =
-    callStartsAt && new Date(callStartsAt) > new Date();
+
+  const callTimeNotArrived = callStartsAt && new Date(callStartsAt) > new Date();
   const callHasEnded = !!callEndedAt;
 
-  // https://getstream.io/video/docs/react/ui-cookbook/replacing-call-controls/
-  const [isMicCamToggled, setIsMicCamToggled] = useState(false);
+  const [isMicOn, setIsMicOn] = useState(true);
+  const [isCameraOn, setIsCameraOn] = useState(true);
   const [isDevicesReady, setIsDevicesReady] = useState(false);
+  const [showSettings, setShowSettings] = useState(false);
 
-  // Wait for call to be properly initialized before rendering VideoPreview
+  // Wait for call to be properly initialized
   useEffect(() => {
     if (!call) return;
 
@@ -109,37 +96,20 @@ const MeetingSetup = ({
 
     const initializeDevices = async () => {
       try {
-        // Wait for call's device manager to fully initialize
-        // Check multiple times to ensure device manager is ready
         let attempts = 0;
-        const maxAttempts = 20; // Increased attempts for slower connections
-        
+        const maxAttempts = 20;
+
         const checkDevicesReady = (): boolean => {
           try {
-            // Check if call object has the necessary properties
-            if (!call || !call.camera || !call.microphone) {
-              return false;
-            }
-            
-            // Check if listDevices method exists and is callable
-            const cameraReady = 
-              typeof call.camera.listDevices === 'function' &&
-              typeof call.camera.enable === 'function' &&
-              typeof call.camera.disable === 'function';
-            
-            const micReady = 
-              typeof call.microphone.listDevices === 'function' &&
-              typeof call.microphone.enable === 'function' &&
-              typeof call.microphone.disable === 'function';
-            
-            // Additional check: ensure the device manager objects are fully initialized
-            // by checking if they have the expected structure
-            const cameraHasState = call.camera.state !== undefined;
-            const micHasState = call.microphone.state !== undefined;
-            
-            return cameraReady && micReady && cameraHasState && micHasState;
-          } catch (error) {
-            // If any error occurs during check, devices are not ready
+            if (!call || !call.camera || !call.microphone) return false;
+
+            const cameraReady = typeof call.camera.listDevices === 'function' &&
+              typeof call.camera.enable === 'function';
+            const micReady = typeof call.microphone.listDevices === 'function' &&
+              typeof call.microphone.enable === 'function';
+
+            return cameraReady && micReady;
+          } catch {
             return false;
           }
         };
@@ -154,47 +124,29 @@ const MeetingSetup = ({
               }
 
               attempts++;
-              
+
               if (checkDevicesReady()) {
                 if (intervalId) clearInterval(intervalId);
-                // Add a small additional delay to ensure Stream.io has fully initialized
-                // This helps prevent race conditions
                 setTimeout(() => {
-                  if (isMounted) {
-                    setIsDevicesReady(true);
-                  }
+                  if (isMounted) setIsDevicesReady(true);
                 }, 100);
                 resolve();
               } else if (attempts >= maxAttempts) {
                 if (intervalId) clearInterval(intervalId);
-                // If still not ready after max attempts, set ready anyway
-                // The error boundary will catch any issues
-                console.warn('Device manager not fully initialized after max attempts, proceeding anyway');
-                if (isMounted) {
-                  setIsDevicesReady(true);
-                }
+                if (isMounted) setIsDevicesReady(true);
                 resolve();
               }
-            }, 200); // Check every 200ms
+            }, 200);
           });
         };
 
-        // Initial delay to let Stream.io initialize the call object
-        // Increased delay to give more time for initialization
         timeoutId = setTimeout(async () => {
-          if (isMounted) {
-            // Poll for device manager to be ready
-            await pollDevices();
-          }
+          if (isMounted) await pollDevices();
         }, 300);
       } catch (error) {
-        console.warn('Device initialization error:', error);
-        // Still allow rendering after delay - error boundary will catch issues
         if (isMounted) {
           timeoutId = setTimeout(() => {
-            if (isMounted) {
-              setIsDevicesReady(true);
-            }
+            if (isMounted) setIsDevicesReady(true);
           }, 2000);
         }
       }
@@ -202,7 +154,6 @@ const MeetingSetup = ({
 
     initializeDevices();
 
-    // Cleanup function
     return () => {
       isMounted = false;
       if (timeoutId) clearTimeout(timeoutId);
@@ -210,78 +161,144 @@ const MeetingSetup = ({
     };
   }, [call]);
 
+  // Toggle mic/camera
   useEffect(() => {
     if (!isDevicesReady || !call?.camera || !call?.microphone) return;
 
-    if (isMicCamToggled) {
-      call.camera.disable();
-      call.microphone.disable();
-    } else {
+    if (isCameraOn) {
       call.camera.enable();
-      call.microphone.enable();
+    } else {
+      call.camera.disable();
     }
-  }, [isMicCamToggled, call, isDevicesReady]);
 
-  if (callTimeNotArrived)
+    if (isMicOn) {
+      call.microphone.enable();
+    } else {
+      call.microphone.disable();
+    }
+  }, [isMicOn, isCameraOn, call, isDevicesReady]);
+
+  if (callTimeNotArrived) {
     return (
       <Alert
-        title={`Your Meeting has not started yet. It is scheduled for ${
-          callStartsAt ? callStartsAt.toLocaleString() : "a later time"
-        }`}
+        title={`Your meeting has not started yet. It is scheduled for ${callStartsAt ? callStartsAt.toLocaleString() : "a later time"
+          }`}
       />
     );
+  }
 
-  if (callHasEnded)
+  if (callHasEnded) {
     return (
       <Alert
         title="The call has been ended by the host"
         iconUrl="/icons/call-ended.svg"
       />
     );
+  }
 
-  // Additional safety check before rendering VideoPreview
-  const canRenderVideoPreview = isDevicesReady && 
-    call?.camera && 
+  const canRenderVideoPreview = isDevicesReady &&
+    call?.camera &&
     call?.microphone &&
-    typeof call.camera.listDevices === 'function' &&
-    typeof call.microphone.listDevices === 'function';
+    typeof call.camera.listDevices === 'function';
 
   return (
-    <div className="flex h-screen w-full flex-col items-center justify-center gap-3 text-white">
-      <h1 className="text-center text-2xl font-bold">Setup</h1>
-      <VideoPreviewErrorBoundary>
-        {canRenderVideoPreview ? (
-          <VideoPreview />
-        ) : (
-          <div className="flex h-[300px] w-[500px] items-center justify-center rounded-lg bg-dark-2">
-            <p className="text-gray-400">
-              {isDevicesReady ? 'Initializing camera preview...' : 'Loading camera preview...'}
-            </p>
+    <div className="flex h-screen w-full bg-meeting">
+      <div className="flex flex-1 flex-col items-center justify-center p-6">
+        {/* Title */}
+        <h1 className="text-white text-2xl font-medium mb-8">
+          Ready to join?
+        </h1>
+
+        {/* Video Preview Container */}
+        <div className="relative w-full max-w-2xl aspect-video rounded-lg overflow-hidden bg-surface mb-6">
+          <VideoPreviewErrorBoundary>
+            {canRenderVideoPreview ? (
+              <VideoPreview />
+            ) : (
+              <div className="flex h-full w-full items-center justify-center">
+                <div className="loader-dots">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+              </div>
+            )}
+          </VideoPreviewErrorBoundary>
+
+          {/* Overlay Controls */}
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-3">
+            <button
+              onClick={() => setIsMicOn(!isMicOn)}
+              disabled={!canRenderVideoPreview}
+              className={cn(
+                "w-12 h-12 rounded-full flex items-center justify-center transition-colors",
+                isMicOn ? "bg-surface hover:bg-control-hover" : "bg-control-danger"
+              )}
+            >
+              {isMicOn ? (
+                <Mic className="w-5 h-5 text-white" />
+              ) : (
+                <MicOff className="w-5 h-5 text-white" />
+              )}
+            </button>
+
+            <button
+              onClick={() => setIsCameraOn(!isCameraOn)}
+              disabled={!canRenderVideoPreview}
+              className={cn(
+                "w-12 h-12 rounded-full flex items-center justify-center transition-colors",
+                isCameraOn ? "bg-surface hover:bg-control-hover" : "bg-control-danger"
+              )}
+            >
+              {isCameraOn ? (
+                <Video className="w-5 h-5 text-white" />
+              ) : (
+                <VideoOff className="w-5 h-5 text-white" />
+              )}
+            </button>
+
+            {canRenderVideoPreview && (
+              <button
+                onClick={() => setShowSettings(!showSettings)}
+                className="w-12 h-12 rounded-full bg-surface hover:bg-control-hover flex items-center justify-center transition-colors"
+              >
+                <Settings className="w-5 h-5 text-white" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Device Settings Panel */}
+        {showSettings && canRenderVideoPreview && (
+          <div className="mb-6 bg-surface rounded-lg p-4">
+            <DeviceSettings />
           </div>
         )}
-      </VideoPreviewErrorBoundary>
-      <div className="flex h-16 items-center justify-center gap-3">
-        <label className="flex items-center justify-center gap-2 font-medium">
-          <input
-            type="checkbox"
-            checked={isMicCamToggled}
-            onChange={(e) => setIsMicCamToggled(e.target.checked)}
-            disabled={!canRenderVideoPreview}
-          />
-          Join with mic and camera off
-        </label>
-        {canRenderVideoPreview && <DeviceSettings />}
+
+        {/* Join Button */}
+        <Button
+          onClick={() => {
+            call.join();
+            setIsSetupComplete(true);
+          }}
+          disabled={!canRenderVideoPreview}
+          className="bg-google-blue hover:bg-google-blue-hover text-white px-8 py-3 rounded-full font-medium text-base transition-colors"
+        >
+          Join now
+        </Button>
+
+        {/* Status Text */}
+        <p className="text-white/50 text-sm mt-4">
+          {isMicOn && isCameraOn
+            ? "Your microphone and camera are on"
+            : isMicOn
+              ? "Your camera is off"
+              : isCameraOn
+                ? "Your microphone is off"
+                : "Your microphone and camera are off"
+          }
+        </p>
       </div>
-      <Button
-        className="rounded-md bg-green-500 px-4 py-2.5"
-        onClick={() => {
-          call.join();
-          setIsSetupComplete(true);
-        }}
-        disabled={!canRenderVideoPreview}
-      >
-        Join meeting
-      </Button>
     </div>
   );
 };

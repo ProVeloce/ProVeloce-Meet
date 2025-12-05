@@ -1,47 +1,54 @@
 'use client';
 
 import Image from 'next/image';
-
 import { cn } from '@/lib/utils';
 
 interface HomeCardProps {
   className?: string;
-  img: string;
+  icon: React.ReactNode;
   title: string;
-  description: string;
+  description?: string;
   handleClick?: () => void;
+  variant?: 'primary' | 'secondary';
 }
 
-const HomeCard = ({ className, img, title, description, handleClick }: HomeCardProps) => {
+const HomeCard = ({
+  className,
+  icon,
+  title,
+  description,
+  handleClick,
+  variant = 'secondary'
+}: HomeCardProps) => {
   return (
-    <section
+    <button
       className={cn(
-        'px-4 sm:px-5 py-5 sm:py-6 flex flex-col justify-between w-full xl:max-w-[270px] min-h-[220px] sm:min-h-[260px] rounded-xl cursor-pointer',
-        'transition-all duration-200 hover:shadow-lg hover:-translate-y-1',
-        'focus-within:outline-none focus-within:ring-2 focus-within:ring-google-blue focus-within:ring-offset-2',
-        'bg-white border border-light-4 shadow-sm',
+        "flex items-center gap-4 w-full p-4 rounded-lg text-left transition-colors",
+        variant === 'primary'
+          ? "bg-google-blue text-white hover:bg-google-blue-hover"
+          : "bg-white border border-border-lighter hover:bg-bg-tertiary text-text-primary",
         className
       )}
       onClick={handleClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          handleClick?.();
-        }
-      }}
-      aria-label={`${title}: ${description}`}
     >
-      <div className="flex-center bg-light-2 size-12 rounded-lg mb-4">
-        <Image src={img} alt="" width={24} height={24} className="icon-blue" aria-hidden="true" />
+      <div className={cn(
+        "w-10 h-10 rounded-full flex items-center justify-center",
+        variant === 'primary' ? "bg-white/20" : "bg-bg-tertiary"
+      )}>
+        {icon}
       </div>
-      
-      <div className="flex flex-col gap-2">
-        <h2 className="text-xl font-bold text-text-primary">{title}</h2>
-        <p className="text-base font-normal text-text-secondary leading-relaxed">{description}</p>
+      <div>
+        <h3 className="font-medium text-base">{title}</h3>
+        {description && (
+          <p className={cn(
+            "text-sm mt-0.5",
+            variant === 'primary' ? "text-white/70" : "text-text-secondary"
+          )}>
+            {description}
+          </p>
+        )}
       </div>
-    </section>
+    </button>
   );
 };
 
