@@ -2,50 +2,66 @@ import { Router, Request, Response } from 'express';
 import { verifyAuth } from './auth';
 import { Chat } from '../models/Chat';
 import { User } from '../models/User';
+import { MeetingParticipant } from '../models/MeetingParticipant';
 import { clerkClient } from '../config/clerk';
 
 const router = Router();
 
 /**
- * Get or create user from Clerk
- * Prevents 404 "User not found" errors
+ * Get or create user from Clerk (with fallback to provided info)
+ * Never returns null - always provides usable user info
  */
-async function getOrCreateUser(userId: string) {
-  // Try to find existing user
-  let user = await User.findOne({ clerkId: userId });
-
-  if (user) {
-    return user;
+async function getOrCreateUser(
+  userId: string,
+  fallback?: { name?: string; avatar?: string }
+): Promise<{ displayName: string; imageUrl?: string; clerkId: string }> {
+  // Try to find existing user in DB
+  const existingUser = await User.findOne({ clerkId: userId });
+  if (existingUser) {
+    return {
+      clerkId: userId,
+      displayName: getUserDisplayName(existingUser),
+      imageUrl: existingUser.imageUrl,
+    };
   }
 
-  // User not in DB - fetch from Clerk and create
+  // Try to fetch from Clerk
   try {
     const clerkUser = await clerkClient.users.getUser(userId);
+    if (clerkUser) {
+      // Create user in DB
+      const newUser = new User({
+        clerkId: userId,
+        email: clerkUser.emailAddresses[0]?.emailAddress || `${userId}@unknown.com`,
+        username: clerkUser.username || undefined,
+        firstName: clerkUser.firstName || undefined,
+        lastName: clerkUser.lastName || undefined,
+        imageUrl: clerkUser.imageUrl || undefined,
+      });
 
-    if (!clerkUser) {
-      return null;
+      await newUser.save().catch(() => { }); // Ignore duplicate errors
+      console.log('[Chat] Auto-created user from Clerk:', userId);
+
+      return {
+        clerkId: userId,
+        displayName: getUserDisplayName(newUser),
+        imageUrl: clerkUser.imageUrl,
+      };
     }
-
-    user = new User({
-      clerkId: userId,
-      email: clerkUser.emailAddresses[0]?.emailAddress || `${userId}@unknown.com`,
-      username: clerkUser.username || undefined,
-      firstName: clerkUser.firstName || undefined,
-      lastName: clerkUser.lastName || undefined,
-      imageUrl: clerkUser.imageUrl || undefined,
-    });
-
-    await user.save();
-    console.log('[Chat] Auto-created user from Clerk:', userId);
-    return user;
   } catch (error: any) {
-    console.error('[Chat] Failed to fetch/create user from Clerk:', error.message);
-    return null;
+    console.warn('[Chat] Clerk lookup failed, using fallback:', error.message);
   }
+
+  // Use fallback info from request body
+  return {
+    clerkId: userId,
+    displayName: fallback?.name || 'Participant',
+    imageUrl: fallback?.avatar,
+  };
 }
 
 /**
- * Get user display name
+ * Get user display name from user document
  */
 function getUserDisplayName(user: any): string {
   if (user.firstName) {
@@ -54,6 +70,39 @@ function getUserDisplayName(user: any): string {
       : user.firstName;
   }
   return user.username || user.email?.split('@')[0] || 'User';
+}
+
+/**
+ * Auto-register participant in meeting (upsert)
+ * Called when user sends a message or joins
+ */
+async function ensureParticipant(
+  meetingId: string,
+  userId: string,
+  userName: string,
+  userImageUrl?: string
+): Promise<void> {
+  try {
+    await MeetingParticipant.findOneAndUpdate(
+      { meetingId, userId },
+      {
+        $setOnInsert: {
+          meetingId,
+          userId,
+          userName,
+          userImageUrl,
+          joinedAt: new Date(),
+          isHost: false,
+        },
+      },
+      { upsert: true, new: true }
+    );
+  } catch (error: any) {
+    // Ignore duplicate key errors (race condition)
+    if (error.code !== 11000) {
+      console.warn('[Chat] Failed to upsert participant:', error.message);
+    }
+  }
 }
 
 // Get chat messages for a meeting
@@ -74,41 +123,50 @@ router.get('/:meetingId', verifyAuth, async (req: Request, res: Response) => {
   }
 });
 
-// Send a chat message
+// Send a chat message (supports both new and legacy formats)
 router.post('/:meetingId', verifyAuth, async (req: Request, res: Response) => {
   try {
     const userId = req.userId;
     const { meetingId } = req.params;
-    const { message, encryptedMessage, iv } = req.body;
+    const {
+      message,
+      content, // Alternative field name
+      encryptedMessage,
+      iv,
+      // Frontend-provided sender info (fallback)
+      senderId,
+      senderName,
+      senderAvatar,
+    } = req.body;
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
     }
 
     // Support both encrypted and plaintext messages
+    const messageContent = message || content;
     const isEncrypted = !!(encryptedMessage && iv);
-    const hasContent = !!(message?.trim() || encryptedMessage);
+    const hasContent = !!(messageContent?.trim() || encryptedMessage);
 
     if (!hasContent) {
       return res.status(400).json({ error: 'Message content is required' });
     }
 
-    // Get or create user (NEVER returns 404 for authenticated users)
-    const user = await getOrCreateUser(userId);
-    if (!user) {
-      // This should only happen if Clerk user doesn't exist (very rare)
-      return res.status(500).json({
-        error: 'Failed to resolve user identity',
-        details: 'User could not be found or created. Please re-authenticate.'
-      });
-    }
+    // Get user info with frontend fallback (NEVER fails)
+    const userInfo = await getOrCreateUser(userId, {
+      name: senderName,
+      avatar: senderAvatar,
+    });
+
+    // Auto-register as participant (non-blocking)
+    ensureParticipant(meetingId, userId, userInfo.displayName, userInfo.imageUrl);
 
     const chatMessage = new Chat({
       meetingId,
       userId,
-      userName: getUserDisplayName(user),
-      userImageUrl: user.imageUrl,
-      message: isEncrypted ? '[Encrypted]' : message.trim(),
+      userName: userInfo.displayName,
+      userImageUrl: userInfo.imageUrl,
+      message: isEncrypted ? '[Encrypted]' : messageContent.trim(),
       encryptedMessage: isEncrypted ? encryptedMessage : undefined,
       iv: isEncrypted ? iv : undefined,
       isEncrypted,
@@ -128,7 +186,7 @@ router.post('/:meetingId/encrypted', verifyAuth, async (req: Request, res: Respo
   try {
     const userId = req.userId;
     const { meetingId } = req.params;
-    const { encryptedMessage, iv } = req.body;
+    const { encryptedMessage, iv, senderName, senderAvatar } = req.body;
 
     if (!userId) {
       return res.status(401).json({ error: 'Unauthorized' });
@@ -138,17 +196,20 @@ router.post('/:meetingId/encrypted', verifyAuth, async (req: Request, res: Respo
       return res.status(400).json({ error: 'Encrypted message and IV are required' });
     }
 
-    // Get or create user
-    const user = await getOrCreateUser(userId);
-    if (!user) {
-      return res.status(500).json({ error: 'Failed to resolve user identity' });
-    }
+    // Get user info with fallback
+    const userInfo = await getOrCreateUser(userId, {
+      name: senderName,
+      avatar: senderAvatar,
+    });
+
+    // Auto-register as participant
+    ensureParticipant(meetingId, userId, userInfo.displayName, userInfo.imageUrl);
 
     const chatMessage = new Chat({
       meetingId,
       userId,
-      userName: getUserDisplayName(user),
-      userImageUrl: user.imageUrl,
+      userName: userInfo.displayName,
+      userImageUrl: userInfo.imageUrl,
       message: '[Encrypted]',
       encryptedMessage,
       iv,
@@ -161,6 +222,84 @@ router.post('/:meetingId/encrypted', verifyAuth, async (req: Request, res: Respo
   } catch (error: any) {
     console.error('[Chat] Error sending encrypted message:', error.message);
     res.status(500).json({ error: 'Failed to send encrypted message' });
+  }
+});
+
+// Register participant when joining meeting
+router.post('/:meetingId/join', verifyAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId;
+    const { meetingId } = req.params;
+    const { userName, userImageUrl, isHost } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    // Get user info
+    const userInfo = await getOrCreateUser(userId, {
+      name: userName,
+      avatar: userImageUrl,
+    });
+
+    // Upsert participant
+    const participant = await MeetingParticipant.findOneAndUpdate(
+      { meetingId, userId },
+      {
+        $set: {
+          userName: userInfo.displayName,
+          userImageUrl: userInfo.imageUrl,
+          leftAt: undefined, // Clear leftAt on rejoin
+        },
+        $setOnInsert: {
+          meetingId,
+          userId,
+          joinedAt: new Date(),
+          isHost: isHost || false,
+        },
+      },
+      { upsert: true, new: true }
+    );
+
+    res.json(participant);
+  } catch (error: any) {
+    console.error('[Chat] Error joining meeting:', error.message);
+    res.status(500).json({ error: 'Failed to join meeting' });
+  }
+});
+
+// Mark participant as left
+router.post('/:meetingId/leave', verifyAuth, async (req: Request, res: Response) => {
+  try {
+    const userId = req.userId;
+    const { meetingId } = req.params;
+
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized' });
+    }
+
+    const participant = await MeetingParticipant.findOneAndUpdate(
+      { meetingId, userId },
+      {
+        $set: {
+          leftAt: new Date(),
+        },
+      },
+      { new: true }
+    );
+
+    if (participant && participant.joinedAt) {
+      const duration = Math.floor(
+        (new Date().getTime() - new Date(participant.joinedAt).getTime()) / 1000
+      );
+      participant.duration = duration;
+      await participant.save();
+    }
+
+    res.json({ message: 'Left meeting', participant });
+  } catch (error: any) {
+    console.error('[Chat] Error leaving meeting:', error.message);
+    res.status(500).json({ error: 'Failed to leave meeting' });
   }
 });
 
