@@ -9,25 +9,35 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/icons/logo.jpeg",
-      "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icons/logo.jpeg",
+      "src": "/icons/ProMeet.png",
       "sizes": "192x192",
-      "type": "image/jpeg",
+      "type": "image/png",
       "purpose": "any"
     },
     {
-      "src": "/icons/logo.jpeg",
+      "src": "/icons/ProMeet.png",
       "sizes": "512x512",
-      "type": "image/jpeg",
+      "type": "image/png",
       "purpose": "any"
+    },
+    {
+      "src": "/icons/ProMeet.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable"
+    },
+    {
+      "src": "/icons/ProMeet.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
     }
   ],
-  "categories": ["business", "productivity", "communication"],
+  "categories": [
+    "business",
+    "productivity",
+    "communication"
+  ],
   "screenshots": [],
   "shortcuts": [
     {
@@ -35,15 +45,24 @@
       "short_name": "New Meeting",
       "description": "Start a new instant meeting",
       "url": "/?action=new-meeting",
-      "icons": [{ "src": "/icons/add-meeting.svg", "sizes": "96x96" }]
+      "icons": [
+        {
+          "src": "/icons/ProMeet.png",
+          "sizes": "96x96"
+        }
+      ]
     },
     {
       "name": "Join Meeting",
       "short_name": "Join",
       "description": "Join a meeting by room code",
       "url": "/?action=join-meeting",
-      "icons": [{ "src": "/icons/join-meeting.svg", "sizes": "96x96" }]
+      "icons": [
+        {
+          "src": "/icons/ProMeet.png",
+          "sizes": "96x96"
+        }
+      ]
     }
   ]
 }
-

@@ -78,8 +78,8 @@ export const metadata: Metadata = {
     },
   },
   icons: {
-    icon: "/icons/logo.jpeg",
-    apple: "/icons/logo.jpeg",
+    icon: "/icons/ProMeet.png",
+    apple: "/icons/ProMeet.png",
   },
   manifest: "/manifest.json",
 };
@@ -90,7 +90,7 @@ export default function RootLayout({
   const clerkAppearance = {
     layout: {
       socialButtonsVariant: "iconButton" as const,
-      logoImageUrl: "/icons/logo.jpeg",
+      logoImageUrl: "/icons/ProMeet.png",
     },
     variables: {
       colorText: "#202124",

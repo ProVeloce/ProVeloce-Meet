@@ -94,7 +94,7 @@ const LandingIntro = () => {
             transition={{ duration: timing.hero, delay: 0.2 }}
           >
             <Image
-              src="/icons/logo.jpeg"
+              src="/icons/ProMeet.png"
               alt="ProVeloce Meet Logo"
               width={64}
               height={64}

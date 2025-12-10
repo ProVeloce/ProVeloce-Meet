@@ -23,7 +23,7 @@ const Navbar = memo(function Navbar() {
           aria-label="ProVeloce Meet Home"
         >
           <Image
-            src="/icons/logo.jpeg"
+            src="/icons/ProMeet.png"
             width={32}
             height={32}
             alt="ProVeloce Meet"

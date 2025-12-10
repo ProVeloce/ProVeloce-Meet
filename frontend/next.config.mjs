@@ -27,11 +27,11 @@ const nextConfig = {
   // Production optimizations
   poweredByHeader: false,
   compress: true,
-  
+
   // Performance optimizations for SEO
   swcMinify: true,
   reactStrictMode: true,
-  
+
   // Headers for SEO and security
   async headers() {
     return [
@@ -58,7 +58,7 @@ const nextConfig = {
       },
     ];
   },
-  
+
   // Redirects for SEO-friendly URLs
   async redirects() {
     return [

@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import { Calendar, Clock, Video } from 'lucide-react';
 
 import Loader from './Loader';
-import { useGetCalls } from '@/hooks/useGetCalls';
+import { useMeetings } from '@/providers/MeetingProvider';
 import MeetingCard from './MeetingCard';
 import { Meeting } from '@/lib/meeting-api';
 import { timing, easing, stagger, prefersReducedMotion } from '@/lib/motion';
@@ -17,7 +17,7 @@ interface CallListProps {
 
 const CallList = memo(function CallList({ type }: CallListProps) {
   const router = useRouter();
-  const { endedCalls, upcomingCalls, callRecordings, isLoading } = useGetCalls();
+  const { endedCalls, upcomingCalls, callRecordings, isLoading } = useMeetings();
   const reducedMotion = typeof window !== 'undefined' && prefersReducedMotion();
 
   const calls = useMemo(() => {

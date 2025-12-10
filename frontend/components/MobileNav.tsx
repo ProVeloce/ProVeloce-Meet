@@ -127,7 +127,7 @@ const MobileNav = () => {
                     transition={{ duration: timing.normal, delay: 0.1 }}
                   >
                     <Image
-                      src="/icons/logo.jpeg"
+                      src="/icons/ProMeet.png"
                       width={32}
                       height={32}
                       alt="ProVeloce Meet"

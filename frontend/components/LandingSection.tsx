@@ -49,7 +49,7 @@ const LandingSection = () => {
           >
             <div className="logo-gradient-wrapper">
               <Image
-                src="/icons/logo.jpeg"
+                src="/icons/ProMeet.png"
                 alt="ProVeloce Meet Logo"
                 width={56}
                 height={56}
